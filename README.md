@@ -223,7 +223,7 @@ Find more about [gh-api-cli](https://github.com/mh-cbon/gh-api-cli)
 
 #### The results
 
-With that script setup on my repository the results is like [this](https://github.com/mh-cbon/gump/releases).
+With that script setup on my repository the results are like [this](https://github.com/mh-cbon/gump/releases).
 
 The entire script can be changed easily and quickly if an update needs to be applied, the output is tasty as I like.
 
