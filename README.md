@@ -18,7 +18,7 @@ Throughout this document i will be using [semver](http://semver.org/) as a conve
 
 # How
 
-I will introduce a simple solution I came up with, you are free to reproduce it, adapt it, crate a new one.
+I will introduce a simple solution I came up with, you are free to reproduce it, adapt it or create a new one.
 
 ### A bumper
 
