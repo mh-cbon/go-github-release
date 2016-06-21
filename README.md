@@ -35,7 +35,7 @@ To make it clear about the meaning of bump verbs, let s take those examples,
 given a current version
 - `0.0.1` => `gump patch      ` => `0.0.2`
 - `0.0.1` => `gump minor      ` => `0.1.0`
-- `0.0.1` => `gump patch      ` => `1.0.0`
+- `0.0.1` => `gump major      ` => `1.0.0`
 - `1.0.1` => `gump pre-release` => `1.0.2-alpha`
 
 ### It s not only about bumping the version
