@@ -53,11 +53,11 @@ Says hello when invoked on the command line
 
 ## Usage
 
-`` `sh
+```sh
 hello - 0.0.1
 
 Say hello.
-`` `
+```
 EOT
 
 $ git add README.md
@@ -82,7 +82,7 @@ $ go run main.go
 hello
 
 $ git remote add origin git@github.com/USER/dummy
-$ curl -u 'USER' https://api.github.com/user/repos -d '{"name":"dummy"}'
+$ curl -u 'USER' https://api.github.com/USER/repos -d '{"name":"dummy"}'
 $ git remote add origin git@github.com:USER/dummy.git
 $ git push --set-upstream origin master
 ```
