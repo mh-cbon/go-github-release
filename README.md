@@ -30,12 +30,12 @@ By then end of this HOWTO you ll acquire reproducible techniques to
 
 ## TOC
 
-- [a dummy project, preliminaries](#a dummy project, preliminaries)
-- [maintaining a changelog](#maintaining a changelog)
-- [bump a package](#bump a package)
-- [packaging for debian](#packaging for debian)
-- [packaging for rpm](#packaging for rpm)
-- [packaging for windows](#packaging for windows)
+- [a dummy project, preliminaries](#a-dummy-project)
+- [maintaining a changelog](#maintaining-a-changelog)
+- [bump a package](#bump-a-package)
+- [packaging for debian](#packaging-for-debian)
+- [packaging for rpm](#packaging-for-rpm)
+- [packaging for windows](#packaging-for-windows)
 
 ## a dummy project
 
