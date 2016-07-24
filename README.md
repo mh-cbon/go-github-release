@@ -53,11 +53,11 @@ Says hello when invoked on the command line
 
 ## Usage
 
-```sh
+`` `sh
 hello - 0.0.1
 
 Say hello.
-```
+`` `
 EOT
 
 $ git add README.md
