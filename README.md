@@ -288,7 +288,9 @@ postversion: changelog md -o CHANGELOG.md --vars='{"name":"dummy"}' \
 && git commit CHANGELOG.md -m "changelog.md: !newversion!"
 && git push \
 && git push --tags \
-&& gh-api-cli create-release -n release -o USER -r dummy --ver !newversion! --draft !isprerelease!
+&& gh-api-cli create-release -n release -o USER -r dummy \
+ --ver !newversion!  --draft !isprerelease! \
+ -c "changelog ghrelease --version !newversion!"
 EOT
 
 $ git add .version
@@ -409,10 +411,14 @@ postversion: git push \
 Push the changes on the remote !
 
 ```sh
-postversion: gh-api-cli create-release -n release -o USER -r dummy --ver !newversion! --draft !isprerelease!
+postversion: gh-api-cli create-release -n release -o USER -r dummy \
+ --ver !newversion!  --draft !isprerelease! \
+ -c "changelog ghrelease --version !newversion!"
 ```
 
-Appropriately create a new github release, we ll see in the next chapter how to take advantage of this.
+Appropriately create a new github release in the repo githu.com/USER/dummy,
+set it drafted if the version is a prerelease like (beta|alpha),
+generate a release description body from the changelog.
 
 To go further, it is recommended to switch some of those tools to a more appropriate version,
 - [philea](https://github.com/mh-cbon/philea) instead of `./...`
