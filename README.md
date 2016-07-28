@@ -1209,7 +1209,7 @@ source package repositories and host them on `gh-pages` branch of your github re
 
 Lets update the `.travis.yml` file.
 
-Add a secured environment variable containing value to a github personal access token,
+Add a secure environment variable containing the value of a github personal access token,
 
 Create a personal access token on github, save its value to your clipboard,
 
@@ -1217,7 +1217,7 @@ Create a personal access token on github, save its value to your clipboard,
 $ xdg-open https://github.com/settings/tokens
 ```
 
-Update env section of the `.travis.yml` file, using `travis cli client`,
+Update `env` section of the `.travis.yml` file, using `travis cli client`, to create a secure variable
 
 ```sh
 $ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
@@ -1228,11 +1228,11 @@ The env section should now look like this
 ```yml
 env:
   global:
-    - MYAPP=go-repo-utils
+    - MYAPP=dummy
     - secure: xxxxx
 ```
 
-Now add an `after_deploy` section, to generate the repositories into `gh-pages` after the release is updated,
+Now add a new section `after_deploy`, to generate the repositories into `gh-pages` after the release is updated,
 
 ```yml
 after_deploy:
