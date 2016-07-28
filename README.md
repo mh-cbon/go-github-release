@@ -27,6 +27,8 @@ By then end of this HOWTO you ll acquire reproducible techniques to
 - produce debian packages, with [go-bin-deb](https://github.com/mh-cbon/go-bin-deb)
 - produce rpm packages, with [go-bin-rpm](https://github.com/mh-cbon/go-bin-rpm)
 - produce windows installers, with [go-msi](https://github.com/mh-cbon/go-msi)
+- produce debian repository over `gh-pages`
+- produce rpm repository over `gh-pages`
 
 ## TOC
 
@@ -36,6 +38,7 @@ By then end of this HOWTO you ll acquire reproducible techniques to
 - [packaging for debian](#packaging-for-debian)
 - [packaging for rpm](#packaging-for-rpm)
 - [packaging for windows](#packaging-for-windows)
+- [distributing app](#distributing-app)
 
 ## a dummy project
 
@@ -276,7 +279,7 @@ Using that file, let s apply process automation to our release process,
 
 ```sh
 $ cat <<EOT > .version
-prebump: git fetch --all
+prebump: git fetch --tags origin master && git pull origin master
 
 preversion: go vet ./... \
 && go fmt ./... \
@@ -373,7 +376,7 @@ In first, it worth to note that the syntax is cross-platform,
 [gump](https://github.com/mh-cbon/gump) takes care to handle '\' EOL appropriately.
 
 ```sh
-prebump: git fetch --all
+prebump: git fetch --tags origin master && git pull origin master
 ```
 
 Before bumping anything, it is absolutely necessary to sync the local with your remote.
@@ -416,9 +419,17 @@ postversion: gh-api-cli create-release -n release -o USER -r dummy \
  -c "changelog ghrelease --version !newversion!"
 ```
 
-Appropriately create a new github release in the repo githu.com/USER/dummy,
+Appropriately create a new github release in the repo github.com/USER/dummy,
 set it drafted if the version is a prerelease like (beta|alpha),
 generate a release description body from the changelog.
+
+Install `gh-api-cli` [from here](https://github.com/mh-cbon/gh-api-cli/),
+then add a new `release` personal access token with
+
+```sh
+$ gh-api-cli add-auth -n release -r repo
+
+```
 
 To go further, it is recommended to switch some of those tools to a more appropriate version,
 - [philea](https://github.com/mh-cbon/philea) instead of `./...`
@@ -516,37 +527,34 @@ language: go
 go:
   - tip
 
+env:
+  global:
+    - MYAPP=dummy
+
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install build-essential lintian -y
   - mkdir -p ${GOPATH}/bin
-  - cd ~
-  - curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh | GH=mh-cbon/changelog sh -xe
-  - curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh | GH=mh-cbon/go-bin-deb sh -xe
 
 install:
-  - cd $GOPATH/src/github.com/USER/dummy
+  - cd $GOPATH/src/github.com/USER/$MYAPP
   - go install
 
 script: go run main.go
 
 before_deploy:
-
   - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/dummy main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/dummy main.go
-
-  - mkdir -p pkg-build/{386,amd64}
-  - go-bin-deb generate -a 386 --version ${TRAVIS_TAG} -w pkg-build/386/ -o ${TRAVIS_BUILD_DIR}/dummy-386.deb
-  - go-bin-deb generate -a amd64 --version ${TRAVIS_TAG} -w pkg-build/amd64/ -o ${TRAVIS_BUILD_DIR}/dummy-amd64.deb
+  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
+  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
 
 deploy:
   provider: releases
   api_key:
     secure: xxxxxxx
+  file_glob: true
   file:
-    - dummy-386.deb
-    - dummy-amd64.deb
+    - $MYAPP-386.deb
+    - $MYAPP-amd64.deb
   skip_cleanup: true
   on:
     tags: true
@@ -570,25 +578,24 @@ go:
 Install latest go version. it s a simple matrix.
 
 ```yml
-before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install build-essential lintian -y
+env:
+  global:
+    - MYAPP=dummy
 ```
 
-Update the system and install required tools to build debian packages.
+Setup env variable available in the rest of the file.
 
 ```yml
 before_install:
-  - curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh | GH=mh-cbon/changelog sh -xe
-  - curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh | GH=mh-cbon/go-bin-deb sh -xe
+  - sudo apt-get -qq update
+  - mkdir -p ${GOPATH}/bin
 ```
 
-Install [latest](https://github.com/mh-cbon/latest) `changelog` and `go-bin-deb`
-debian packages from their github repositories so the system can use them to build the package.
+Update the system, make a clean go setup.
 
 ```yml
 install:
-  - cd $GOPATH/src/github.com/USER/dummy
+  - cd $GOPATH/src/github.com/USER/$MYAPP
   - go install
 
 script: go run main.go
@@ -599,8 +606,8 @@ Install your software, make sure it works.
 ```yml
 before_deploy:
   - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/dummy main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/dummy main.go
+  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
+  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
 ```
 
 Generate the files to include into the packages,
@@ -611,15 +618,13 @@ Each desired architecture is built into it s own build folder `build/!arch!/`
 
 ```yml
 before_deploy:
-  - mkdir -p pkg-build/{386,amd64}
-  - go-bin-deb generate -a 386 --version ${TRAVIS_TAG} -w pkg-build/386/ -o ${TRAVIS_BUILD_DIR}/dummy-386.deb
-  - go-bin-deb generate -a amd64 --version ${TRAVIS_TAG} -w pkg-build/amd64/ -o ${TRAVIS_BUILD_DIR}/dummy-amd64.deb
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
 ```
 
-Produce debian package using `pkg-build/!arch!` as a build area,
+Produce debian packages into the build area `pkg-build/!arch!`,
 and output the file to the travis build directory.
 
-Each architecture needs to produce its own debian package.
+A debian package will be produced for each architecture of {386,amd64}
 
 Version information is taken out of the tag name.
 
@@ -628,15 +633,17 @@ deploy:
   provider: releases
   api_key:
     secure: xxxxxxx
+  file_glob: true
   file:
-    - dummy-386.deb
-    - dummy-amd64.deb
+    - $MYAPP-386.deb
+    - $MYAPP-amd64.deb
   skip_cleanup: true
   on:
     tags: true
 ```
 
-This section tells travis system to upload assets listed `file`
+This section tells travis system to upload assets listed `file`,
+because of `file_glob: true` expand file names,
 to a github release and to do that only `on: tags: true`
 
 Thats it!
@@ -741,42 +748,37 @@ language: go
 go:
   - tip
 
+env:
+  global:
+    - MYAPP=gh-api-cli
+
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install build-essential lintian -y
-  - curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh | GH=mh-cbon/changelog sh -xe
-  - curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh | GH=mh-cbon/go-bin-deb sh -xe
 
 install:
-  - cd $GOPATH/src/github.com/USER/dummy
+  - cd $GOPATH/src/github.com/USER/$MYAPP
   - go install
 
 script: go run main.go
 
 before_deploy:
   - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/dummy main.go
-  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/dummy main.go
+  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/$MYAPP main.go
+  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/$MYAPP main.go
 
-  - mkdir -p pkg-build/{386,amd64}
-  - go-bin-deb generate -a 386 --version ${TRAVIS_TAG} -w pkg-build/386/ -o ${TRAVIS_BUILD_DIR}/dummy-386.deb
-  - go-bin-deb generate -a amd64 --version ${TRAVIS_TAG} -w pkg-build/amd64/ -o ${TRAVIS_BUILD_DIR}/dummy-amd64.deb
-
-  - rm -fr pkg-build/
-  - mkdir -p pkg-build/{386,amd64}
-  - docker run -v $PWD:/docker fedora /bin/sh -c "cd /docker && sh ./docker.sh ${TRAVIS_TAG} dummy"
-  - sudo chown travis:travis dummy-{386,amd64}.rpm
-
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
 
 deploy:
   provider: releases
   api_key:
     secure: xxxx
+  file_glob: true
   file:
-    - dummy-386.deb
-    - dummy-amd64.deb
-    - dummy-386.rpm
-    - dummy-amd64.rpm
+    - $MYAPP-386.deb
+    - $MYAPP-amd64.deb
+    - $MYAPP-386.rpm
+    - $MYAPP-amd64.rpm
   skip_cleanup: true
   on:
     tags: true
@@ -796,68 +798,22 @@ This enables `docker` on travis. It requires `sudo`.
 
 ```yml
 before_deploy:
-  - rm -fr pkg-build/
-  - mkdir -p pkg-build/{386,amd64}
-  - docker run -v $PWD:/docker fedora /bin/sh -c "cd /docker && sh ./docker.sh ${TRAVIS_TAG} dummy"
-  - sudo chown travis:travis dummy-{386,amd64}.rpm
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
 ```
 
-Clean up the package build area, run package creation over a fedora docker image.
-The content of `docker.sh` is
+Produce rpm packages into the build area `pkg-build/!arch!`,
+and output the file to the travis build directory.
 
-```sh
-$ cat <<EOT > docker.sh
-dnf install rpm-build -y
+An rpm package will be produced for each architecture of {386,amd64}
 
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=mh-cbon/changelog sh -xe
-
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=mh-cbon/go-bin-rpm sh -xe
-
-cd /docker
-TAG=$1
-NAME=$2
-if [[ -z ${TAG} ]]; then TAG="0.0.0"; fi
-VERBOSE=* go-bin-rpm generate -a 386 --version ${TAG} -b pkg-build/386/ -o ${NAME}-386.rpm
-VERBOSE=* go-bin-rpm generate -a amd64 --version ${TAG} -b pkg-build/amd64/ -o ${NAME}-amd64.rpm
-EOT
-```
-
-```sh
-dnf install rpm-build -y
-```
-
-Install required dependencies to generate rpm packages.
-
-```sh
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=mh-cbon/changelog sh -xe
-
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=mh-cbon/go-bin-rpm sh -xe
-```
-
-Install [latest](https://github.com/mh-cbon/latest) `changelog` and `go-bin-rpm` rpm packages on the system.
-
-```sh
-cd /docker
-TAG=$1
-NAME=$2
-if [[ -z ${TAG} ]]; then TAG="0.0.0"; fi
-VERBOSE=* go-bin-rpm generate -a 386 --version ${TAG} -b pkg-build/386/ -o ${NAME}-386.rpm
-VERBOSE=* go-bin-rpm generate -a amd64 --version ${TAG} -b pkg-build/amd64/ -o ${NAME}-amd64.rpm
-```
-
-cd to the `/docker` folder containing the repository sources,
-run `go-bin-rpm` to generate a package for each desired architectures.
+Version information is taken out of the tag name.
 
 ```yml
 file:
-  - dummy-386.deb
-  - dummy-amd64.deb
-  - dummy-386.rpm
-  - dummy-amd64.rpm
+  - $MYAPP-386.deb
+  - $MYAPP-amd64.deb
+  - $MYAPP-386.rpm
+  - $MYAPP-amd64.rpm
 ```
 
 Update `file` list of `deploy` section to include the new rpm packages.
@@ -980,6 +936,13 @@ $ cat <<EOT > wix.json
 EOT
 ```
 
+Then setup guids with help of `go-msi`
+
+```sh
+$ go-msi set-guid
+file updated
+```
+
 Short story,
 
 create an installer made of `dummy.exe` file,
@@ -1004,9 +967,9 @@ install:
   - 7z x C:\wix310-binaries.zip -y -r -oC:\wix310
   - set PATH=C:\wix310;%PATH%
   - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-  - curl -fsSL -o C:\go-msi.msi https://github.com/mh-cbon/go-msi/releases/download/0.0.23/go-msi-amd64.msi
-  - msiexec.exe /i C:\go-msi.msi /quiet
-  - set PATH=C:\Program Files\go-msi\;%PATH% # need to set this manually
+  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
+  - cmd /C C:\latest.bat mh-cbon go-msi amd64
+  - set PATH=C:\Program Files\go-msi\;%PATH%
 
 build_script:
   - set MYAPP=dummy
@@ -1092,9 +1055,9 @@ Install wix binaries, register their path to PATH
 
 ```yml
 install:
-  - curl -fsSL -o C:\go-msi.msi https://github.com/mh-cbon/go-msi/releases/download/0.0.23/go-msi-amd64.msi
-  - msiexec.exe /i C:\go-msi.msi /quiet
-  - set PATH=C:\Program Files\go-msi\;%PATH% # need to set this manually
+  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
+  - cmd /C C:\latest.bat mh-cbon go-msi amd64
+  - set PATH=C:\Program Files\go-msi\;%PATH%
 ```
 
 Install `go-msi` on the machine, registers its path to PATH.
@@ -1210,6 +1173,147 @@ Created new tag 0.0.5
 Within minutes both `appveyor` and `travis` will create the packages
 and put all of them into the
 [github release page](https://github.com/mh-cbon/dummy/releases)
+
+# distributing app
+
+To distribute your application several cases and ways are possible.
+
+#### Windows
+
+On windows, for a regular user, a link to the MSI package
+and the `click-click-click` practice is enough.
+
+#### rpm / debian
+
+__One time setup__
+
+To easily install your package, you can use that snippet in your repo,
+
+```sh
+curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
+| GH=USER/dummy sh
+# or
+wget -q -O - \
+https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
+| GH=USER/dummy sh
+```
+
+Which will detect the running system, detect the last version of the repo `USER/dummy`,
+download a deb or rpm package for the given system,
+and run the appropriate command to install the package.
+
+__setup a regular package source__
+
+For a better integration and ease package update, you can also create
+source package repositories and host them on `gh-pages` branch of your github repository.
+
+Lets update the `.travis.yml` file.
+
+Add a secured environment variable containing value to a github personal access token,
+
+Create a personal access token on github, save its value to your clipboard,
+
+```sh
+$ xdg-open https://github.com/settings/tokens
+```
+
+Update env section of the `.travis.yml` file, using `travis cli client`,
+
+```sh
+$ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
+```
+
+The env section should now look like this
+
+```yml
+env:
+  global:
+    - MYAPP=go-repo-utils
+    - secure: xxxxx
+```
+
+Now add an `after_deploy` section, to generate the repositories into `gh-pages` after the release is updated,
+
+```yml
+after_deploy:
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/setup-repository.sh | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/setup-repository.sh | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
+```
+
+Last step, update the `README.md` to add instructions to setup the new source,
+
+```sh
+wget -O - https://raw.githubusercontent.com/mh-cbon/latest/master/source.sh | GH=USER/dummy sh -xe
+# or
+curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/source.sh | GH=USER/dummy sh -xe
+```
+
+Thats it!
+
+Let s now roll out a last version to generates the repositories
+
+```sh
+$ git commit -am "packaging: add deb/rpm source repositories"
+
+$ changelog prepare
+changelog file updated
+
+$ cat change.log
+UNRELEASED
+
+  * packaging: add deb/rpm source repositories
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.5
+
+  * packaging: add msi package support
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.4
+
+  * packaging: add rpm package support
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.3
+
+  * packaging: add debian package support
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.2
+
+  * init: release automation
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.1
+
+  * Initial release
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+
+<go on and edit the change.log to make it useful>
+
+$ gump major
+.. commands output
+Created new tag 1.0.0
+.. commands output
+```
 
 # The end !!
 
