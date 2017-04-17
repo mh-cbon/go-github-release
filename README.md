@@ -6,7 +6,6 @@ Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=
 
 # TOC
 - [TLDR;](#tldr;)
-- [TOC](#toc)
 - [a dummy project](#a-dummy-project)
 - [maintaining a changelog](#maintaining-a-changelog)
   - [In practice](#in-practice)
@@ -45,6 +44,7 @@ push them to public cloud service>
 
 By then end of this HOWTO you ll acquire reproducible techniques to
 - maintain a changelog, with [changelog](https://github.com/mh-cbon/changelog)
+- maintain a README, with [emd](https://github.com/mh-cbon/emd)
 - bump your package, with [gump](https://github.com/mh-cbon/gump)
 - create github release, with [gh-api-cli](https://github.com/mh-cbon/gh-api-cli)
 - produce debian packages, with [go-bin-deb](https://github.com/mh-cbon/go-bin-deb)
@@ -52,16 +52,6 @@ By then end of this HOWTO you ll acquire reproducible techniques to
 - produce windows installers, with [go-msi](https://github.com/mh-cbon/go-msi)
 - produce debian repository over `gh-pages`
 - produce rpm repository over `gh-pages`
-
-## TOC
-
-- [a dummy project, preliminaries](#a-dummy-project)
-- [maintaining a changelog](#maintaining-a-changelog)
-- [bump a package](#bump-a-package)
-- [packaging for debian](#packaging-for-debian)
-- [packaging for rpm](#packaging-for-rpm)
-- [packaging for windows](#packaging-for-windows)
-- [distributing app](#distributing-app)
 
 ## a dummy project
 
