@@ -1,0 +1,9 @@
+
+env:
+  global:
+    - MYAPP=dummy
+    - secure: xxxxx
+
+after_deploy:
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/setup-repository.sh | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/setup-repository.sh | GH=USER/$MYAPP EMAIL=your@email.com sh -xe

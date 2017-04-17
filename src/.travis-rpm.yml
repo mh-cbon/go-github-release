@@ -1,0 +1,39 @@
+sudo: required
+
+services:
+  - docker
+
+language: go
+go:
+  - tip
+
+env:
+  global:
+    - MYAPP=gh-api-cli
+
+before_install:
+  - sudo apt-get -qq update
+
+install:
+  - cd $GOPATH/src/github.com/USER/$MYAPP
+  - go install
+
+script: go run main.go
+
+before_deploy:
+  - mkdir -p build/{386,amd64}
+  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/$MYAPP main.go
+  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/$MYAPP main.go
+  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
+
+deploy:
+  provider: releases
+  api_key:
+    secure: xxxx
+  file_glob: true
+  file:
+    - $MYAPP-386.rpm
+    - $MYAPP-amd64.rpm
+  skip_cleanup: true
+  on:
+    tags: true

@@ -495,41 +495,7 @@ Next step is to create a `.travis.yml` file to build the packages then upload th
 
 ```sh
 $ cat <<EOT > .travis.yml
-language: go
-go:
-  - tip
-
-env:
-  global:
-    - MYAPP=dummy
-
-before_install:
-  - sudo apt-get -qq update
-  - mkdir -p ${GOPATH}/bin
-
-install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
-  - go install
-
-script: go run main.go
-
-before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
-
-deploy:
-  provider: releases
-  api_key:
-    secure: xxxxxxx
-  file_glob: true
-  file:
-    - $MYAPP-386.deb
-    - $MYAPP-amd64.deb
-  skip_cleanup: true
-  on:
-    tags: true
+{{yaml "src/.travis.yml" | preline "  "}}
 EOT
 ```
 
@@ -541,78 +507,34 @@ $ travis setup releases
 
 The step-by-step explanations of this `.travis.yml` file,
 
-```yml
-language: go
-go:
-  - tip
-```
+{{yaml "src/.travis.yml" "language" "go" | preline "  " | color "yaml"}}
 
 Install latest go version. it s a simple matrix.
 
-```yml
-env:
-  global:
-    - MYAPP=dummy
-```
+{{yaml "src/.travis.yml" "env" | preline "  " | color "yaml"}}
 
 Setup env variable available in the rest of the file.
 
-```yml
-before_install:
-  - sudo apt-get -qq update
-  - mkdir -p ${GOPATH}/bin
-```
+{{yaml "src/.travis.yml" "before_install" | preline "  " | color "yaml"}}
 
 Update the system, make a clean go setup.
 
-```yml
-install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
-  - go install
-
-script: go run main.go
-```
+{{yaml "src/.travis.yml" "install" "script" | preline "  " | color "yaml"}}
 
 Install your software, make sure it works.
 
-```yml
-before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
-```
+{{yaml "src/.travis.yml" "before_deploy" | preline "  " | color "yaml"}}
 
-Generate the files to include into the packages,
+- Generate the files to include into the packages,
 this is required step to handle by hands depending
-on your requirements.
-
-Each desired architecture is built into it s own build folder `build/!arch!/`
-
-```yml
-before_deploy:
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
-```
-
-Produce debian packages into the build area `pkg-build/!arch!`,
+on your requirements. Each desired architecture is built into it s own build folder `build/!arch!/`
+- Produce debian packages into the build area `pkg-build/!arch!`,
 and output the file to the travis build directory.
-
-A debian package will be produced for each architecture of {386,amd64}
+- A debian package will be produced for each architecture of {386,amd64}
 
 Version information is taken out of the tag name.
 
-```yml
-deploy:
-  provider: releases
-  api_key:
-    secure: xxxxxxx
-  file_glob: true
-  file:
-    - $MYAPP-386.deb
-    - $MYAPP-amd64.deb
-  skip_cleanup: true
-  on:
-    tags: true
-```
+{{yaml "src/.travis.yml" "deploy" | preline "  " | color "yaml"}}
 
 This section tells travis system to upload assets listed `file`,
 because of `file_glob: true` expand file names,
@@ -673,67 +595,17 @@ Next step is to update the `.travis.yml` file to generate rpm packages,
 
 ```sh
 $ cat <<EOT > .travis.yml
-sudo: required
-
-services:
-  - docker
-
-language: go
-go:
-  - tip
-
-env:
-  global:
-    - MYAPP=gh-api-cli
-
-before_install:
-  - sudo apt-get -qq update
-
-install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
-  - go install
-
-script: go run main.go
-
-before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/$MYAPP main.go
-
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
-
-deploy:
-  provider: releases
-  api_key:
-    secure: xxxx
-  file_glob: true
-  file:
-    - $MYAPP-386.deb
-    - $MYAPP-amd64.deb
-    - $MYAPP-386.rpm
-    - $MYAPP-amd64.rpm
-  skip_cleanup: true
-  on:
-    tags: true
+{{yaml "src/.travis-rpm.yml" | preline "  "}}
 EOT
 ```
 
 The step-by-step explanations of the changes applied to `.travis.yml` file,
 
-```yml
-sudo: required
-
-services:
-  - docker
-```
+{{yaml "src/.travis-rpm.yml" "sudo" "services" | preline "  " | color "yaml"}}
 
 This enables `docker` on travis. It requires `sudo`.
 
-```yml
-before_deploy:
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
-```
+{{yaml "src/.travis-rpm.yml" "before_deploy" | preline "  " | color "yaml"}}
 
 Produce rpm packages into the build area `pkg-build/!arch!`,
 and output the file to the travis build directory.
@@ -742,13 +614,7 @@ An rpm package will be produced for each architecture of {386,amd64}
 
 Version information is taken out of the tag name.
 
-```yml
-file:
-  - $MYAPP-386.deb
-  - $MYAPP-amd64.deb
-  - $MYAPP-386.rpm
-  - $MYAPP-amd64.rpm
-```
+{{yaml "src/.travis-rpm.yml" "deploy" | preline "  " | color "yaml"}}
 
 Update `file` list of `deploy` section to include the new rpm packages.
 
@@ -854,87 +720,33 @@ Set the secure key into the `appveyor.yml` file.
 
 The step-by-step explanations of this `appveyor.yml` file,
 
-```yml
-version: "{build}"
-os: Windows Server 2012 R2
-clone_folder: c:\gopath\src\github.com\USER\dummy
-skip_non_tags: true
-```
+{{yaml "src/appveyor.yml" "version" "os" "clone_folder" "skip_non_tags" | preline "  " | color "yaml"}}
 
 Defines the windows version to run, it does not matter much.
 sets the clone path, tells appveyor to skip non tag commits
 as this is a build only `appveyor.yml` file.
 
-
-```yml
-environment:
-  GOPATH: c:\gopath
-  GO15VENDOREXPERIMENT: 1
-install:
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-```
+{{yaml "src/appveyor.yml" "environment" | preline "  " | color "yaml"}}
 
 Set some required ENV for the go setup.
 
-```yml
-install:
-  - curl -fsSL -o C:\wix310-binaries.zip http://static.wixtoolset.org/releases/v3.10.3.3007/wix310-binaries.zip
-  - 7z x C:\wix310-binaries.zip -y -r -oC:\wix310
-  - set PATH=C:\wix310;%PATH%
-```
+{{yaml "src/appveyor.yml" "install" | preline "  " | color "yaml"}}
 
 Install wix binaries, register their path to PATH
 
-```yml
-install:
-  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
-  - cmd /C C:\latest.bat mh-cbon go-msi amd64
-  - set PATH=C:\Program Files\go-msi\;%PATH%
-```
-
 Install `go-msi` on the machine, registers its path to PATH.
 
-```yml
-build_script:
-  - set MYAPP=dummy
-  - set GOARCH=386
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
-  - set GOARCH=amd64
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
-```
+{{yaml "src/appveyor.yml" "build_script" | preline "  " | color "yaml"}}
 
 Create binaries for each architecture and create the windows installer.
 Save resulting file into `APPVEYOR_BUILD_FOLDER` to be able to upload them afterward.
 
-```yml
-artifacts:
-  - path: '*-386.msi'
-    name: msi-x86
-  - path: '*-amd64.msi'
-    name: msi-x64
-```
+{{yaml "src/appveyor.yml" "artifacts" | preline "  " | color "yaml"}}
 
 Define a bunch of assets (name <> path).
 Where path is always relative to `APPVEYOR_BUILD_FOLDER`
 
-```yml
-deploy:
-  - provider: GitHub
-    artifact: msi-x86, msi-x64
-    draft: false
-    prerelease: false
-    description: "Release %APPVEYOR_REPO_TAG_NAME%"
-    auth_token:
-      secure: xxxx
-    on:
-      branch:
-        - master
-        - /v\d\.\d\.\d/
-        - /\d\.\d\.\d/
-      appveyor_repo_tag: true
-```
+{{yaml "src/appveyor.yml" "deploy" | preline "  " | color "yaml"}}
 
 Tells `appveyor` to take `msi-x86`, `msi-x64` artifacts and upload them to the github release page.
 
@@ -1012,23 +824,13 @@ $ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
 
 The env section should now look like this
 
-```yml
-env:
-  global:
-    - MYAPP=dummy
-    - secure: xxxxx
-```
+{{yaml "src/.travis-repo.yml" "env" | preline "  " | color "yaml"}}
 
 Now add a new section `after_deploy`, to generate the repositories into `gh-pages` after the release is updated,
 
-```yml
-after_deploy:
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/setup-repository.sh | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/setup-repository.sh | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
-```
+{{yaml "src/.travis-repo.yml" "after_deploy" | preline "  " | color "yaml"}}
 
 Last step, update the `README.md` to add instructions to setup the new source,
-
 
 {{render "linux/gh_src_repo" . "User" "USER" "Name" "dummy"}}
 
