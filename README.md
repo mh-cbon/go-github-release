@@ -5,7 +5,7 @@ HOWTO implement a feature complete release software flow over github.
 Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=33s)/.
 
 # TOC
-- [TLDR;](#tldr;)
+- [TLDR;](#tldr)
 - [a dummy project](#a-dummy-project)
 - [maintaining a changelog](#maintaining-a-changelog)
   - [In practice](#in-practice)
