@@ -2,7 +2,7 @@
 
 HOWTO implement a feature complete release software flow over github.
 
-Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=33s)/.
+Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=37s)/.
 
 # {{toc 5}}
 
