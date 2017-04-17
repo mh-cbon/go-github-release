@@ -1,0 +1,39 @@
+UNRELEASED
+
+  * packaging: add msi package support
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.4
+
+  * packaging: add rpm package support
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.3
+
+  * packaging: add debian package support
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.2
+
+  * init: release automation
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
+
+0.0.1
+
+  * Initial release
+
+  - USER <email>
+
+-- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200

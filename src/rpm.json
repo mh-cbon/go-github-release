@@ -1,0 +1,16 @@
+{
+  "name": "dummy",
+  "summary": "Say hello",
+  "description": "A command line to say hello",
+  "changelog-cmd": "changelog rpm",
+  "license": "LICENSE",
+  "url": "https://github.com/USER/!name!",
+  "files": [
+    {
+      "from": "build/!arch!/!name!",
+      "to": "%{_bindir}/",
+      "base": "build/!arch!/",
+      "type": ""
+    }
+  ]
+}

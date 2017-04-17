@@ -4,28 +4,7 @@ HOWTO implement a feature complete release software flow over github.
 
 Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=33s)/.
 
-# TOC
-- [TLDR;](#tldr;)
-- [TOC](#toc)
-- [a dummy project](#a-dummy-project)
-- [maintaining a changelog](#maintaining-a-changelog)
-  - [In practice](#in-practice)
-- [keep your README up to date](#keep-your-readme-up-to-date)
-  - [In practice](#in-practice)
-- [bump a package](#bump-a-package)
-  - [In practice](#in-practice)
-  - [gh-api-cli](#gh-api-cli)
-  - [integration](#integration)
-- [packaging for debian](#packaging-for-debian)
-  - [In practice](#in-practice)
-- [packaging for rpm](#packaging-for-rpm)
-  - [In practice](#in-practice)
-- [packaging for windows](#packaging-for-windows)
-  - [In practice](#in-practice)
-- [distributing app](#distributing-app)
-  - [Windows](#windows)
-  - [rpm / debian](#rpm--debian)
-- [The end !!](#the-end-!!)
+# {{toc 5}}
 
 ## TLDR;
 
@@ -45,6 +24,7 @@ push them to public cloud service>
 
 By then end of this HOWTO you ll acquire reproducible techniques to
 - maintain a changelog, with [changelog](https://github.com/mh-cbon/changelog)
+- maintain a README, with [emd](https://github.com/mh-cbon/emd)
 - bump your package, with [gump](https://github.com/mh-cbon/gump)
 - create github release, with [gh-api-cli](https://github.com/mh-cbon/gh-api-cli)
 - produce debian packages, with [go-bin-deb](https://github.com/mh-cbon/go-bin-deb)
@@ -52,16 +32,6 @@ By then end of this HOWTO you ll acquire reproducible techniques to
 - produce windows installers, with [go-msi](https://github.com/mh-cbon/go-msi)
 - produce debian repository over `gh-pages`
 - produce rpm repository over `gh-pages`
-
-## TOC
-
-- [a dummy project, preliminaries](#a-dummy-project)
-- [maintaining a changelog](#maintaining-a-changelog)
-- [bump a package](#bump-a-package)
-- [packaging for debian](#packaging-for-debian)
-- [packaging for rpm](#packaging-for-rpm)
-- [packaging for windows](#packaging-for-windows)
-- [distributing app](#distributing-app)
 
 ## a dummy project
 
@@ -72,34 +42,13 @@ $ mkdir $GOPATH/src/github.com/USER/dummy
 $ cd $GOPATH/src/github.com/USER/dummy
 $ git init
 
-$ cat <<EOT > src/README.md
-# dummy
-
-Says hello when invoked on the command line
-
-## Usage
-
-`` `sh
-hello - 0.0.1
-
-Say hello.
-`` `
+$ cat <<EOT > {{cat "src/README.md"}}
 EOT
 
 $ git add README.md
 $ git commit README.md -m "init: add README"
 
-$ cat <<EOT > src/main.go
-// Package hello is a command line program to say hello.
-package main
-
-import (
-	"fmt"
-)
-
-func main() {
-	fmt.Println("Hello")
-}
+$ cat <<EOT > {{cat "src/main.go"}}
 EOT
 
 $ git add main.go
@@ -147,14 +96,7 @@ $ ls -al change.log
 -rw-rw-r-- ... change.log
 
 $ cat change.log
-UNRELEASED
-
-  * init: add main
-  * init: add README
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.init"}}
 
 $ git add change.log
 $ git commit change.log -m "init: changelog"
@@ -170,15 +112,7 @@ $ changelog prepare
 changelog file updated
 
 $ cat change.log
-UNRELEASED
-
-  * init: changelog
-  * init: add main
-  * init: add README
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.prepare"}}
 ```
 
 As stated before in the quote, dumping the contents of the commits log is
@@ -206,31 +140,12 @@ $ changelog finalize --version=0.0.1
 changelog file updated
 
 $ cat change.log
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.001"}}
 
 $ changelog md -o CHANGELOG.md --vars='{"name":"dummy"}'
 
 $ cat CHANGELOG.md
-# Changelog - dummy
-
-### 0.0.1
-
-__Changes__
-
-- Initial release
-
-__Contributors__
-
-- USER
-
-Released by USER, Tue 21 Jun 2016
-______________
+{{read "src/CHANGELOG.md.001"}}
 
 $ git add CHANGELOG.md
 $ git commit CHANGELOG.md -m "init: github changelog"
@@ -281,16 +196,7 @@ Check the detailed documentation at [emd](https://github.com/mh-cbon/emd#toc)
 Create a new file where you want to have a README file,
 
 ```sh
-$ cat <<EOT > src/README.e.md
-# {{.Name}}
-
-{{pkgdoc}}
-
-# {{toc 4}}
-
-# Example
-
-#### $ {{exec "go" "run" "main.go" | color "sh"}}
+$ cat <<EOT > {{cat "src/README.e.md"}}
 EOT
 
 $ git add README.e.md
@@ -392,27 +298,7 @@ Using that file, let s apply process automation to our release process,
 
 ```sh
 $ cat <<EOT > .version.sh
-PREBUMP=
-  git fetch --tags origin master
-  git pull origin master
-
-PREVERSION=
-  go vet ./...
-  go fmt ./...
-  go run main.go
-  changelog finalize --version !newversion!
-  git commit change.log -m "changelog: !newversion!"
-  emd gen README.e.md > README.md
-  git commit README.md -m "README: !newversion!"
-  changelog md -o CHANGELOG.md --vars='{"name":"dummy"}'
-  git commit CHANGELOG.md -m "changelog.md: !newversion!"
-
-POSTVERSION=
-  git push
-  git push --tags
-  gh-api-cli create-release -n release -o USER -r dummy \
-   --ver !newversion!  --draft !isprerelease! \
-   -c "changelog ghrelease --version !newversion!"
+{{read "src/.version.sh"}}
 EOT
 
 $ git add .version.sh
@@ -428,21 +314,7 @@ $ changelog prepare
 changelog file updated
 
 $ cat change.log
-UNRELEASED
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.001.prepare"}}
 ```
 
 - go on and edit the change.log to make it useful,
@@ -460,33 +332,7 @@ That's it!
 
 ```sh
 $ cat CHANGELOG.md
-# Changelog - dummy
-
-### 0.0.2
-
-__Changes__
-
-- init: release automation
-
-__Contributors__
-
-- USER
-
-Released by USER, Tue 21 Jun 2016
-______________
-
-### 0.0.1
-
-__Changes__
-
-- Initial release
-
-__Contributors__
-
-- USER
-
-Released by USER, Tue 21 Jun 2016
-______________
+{{read "src/CHANGELOG.md.002"}}
 
 $ git tag
 0.0.2
@@ -632,29 +478,7 @@ Create a `deb.json` file to describe the package content
 
 ```sh
 $ cat <<EOT > deb.json
-{
-  "name": "dummy",
-  "maintainer": "USER <email>",
-  "description": "Say hello",
-  "changelog-cmd": "changelog debian --vars='{\"name\":\"!name!\"}'",
-  "homepage": "http://github.com/USER/!name!",
-  "files": [
-    {
-      "from": "build/!arch!/!name!",
-      "to": "/usr/bin",
-      "base" : "build/!arch!/",
-      "fperm": "0755"
-    }
-  ],
-  "copyrights": [
-    {
-      "files": "*",
-      "copyright": "2016 USER <email>",
-      "license": "MIT ??",
-      "file": "LICENSE"
-    }
-  ]
-}
+{{read "src/deb.json"}}
 EOT
 ```
 
@@ -806,29 +630,7 @@ $ changelog prepare
 changelog file updated
 
 $ cat change.log
-UNRELEASED
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.002.prepare"}}
 
 <go on and edit the change.log to make it useful>
 
@@ -863,22 +665,7 @@ create an `rpm.json` file to describe the package content
 
 ```sh
 $ cat <<EOT > rpm.json
-{
-  "name": "dummy",
-  "summary": "Say hello",
-  "description": "A command line to say hello",
-  "changelog-cmd": "changelog rpm",
-  "license": "LICENSE",
-  "url": "https://github.com/USER/!name!",
-  "files": [
-    {
-      "from": "build/!arch!/!name!",
-      "to": "%{_bindir}/",
-      "base": "build/!arch!/",
-      "type": ""
-    }
-  ]
-}
+{{read "src/rpm.json"}}
 EOT
 ```
 
@@ -977,37 +764,7 @@ $ changelog prepare
 changelog file updated
 
 $ cat change.log
-UNRELEASED
-
-  * packaging: add rpm package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.3
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.003.prepare"}}
 
 <go on and edit the change.log to make it useful>
 
@@ -1055,31 +812,7 @@ create an `wix.json` file to describe the package content
 
 ```sh
 $ cat <<EOT > wix.json
-{
-  "product": "dummy",
-  "company": "USER",
-  "license": "LICENSE",
-  "upgrade-code": "",
-  "files": {
-    "guid": "",
-    "items": [
-      "dummy.exe"
-    ]
-  },
-  "env": {
-    "guid": "",
-    "vars": [
-      {
-        "name": "PATH",
-        "value": "[INSTALLDIR]",
-        "permanent": "no",
-        "system": "no",
-        "action": "set",
-        "part": "last"
-      }
-    ]
-  }
-}
+{{read "src/wix.json"}}
 EOT
 ```
 
@@ -1100,55 +833,7 @@ To perform the build of the package, create an `appveyor.yml` file.
 
 ```sh
 $ cat <<EOT > appveyor.yml
-version: "{build}"
-os: Windows Server 2012 R2
-clone_folder: c:\gopath\src\github.com\USER\dummy
-skip_non_tags: true
-
-environment:
-  GOPATH: c:\gopath
-  GO15VENDOREXPERIMENT: 1
-
-install:
-  - curl -fsSL -o C:\wix310-binaries.zip http://static.wixtoolset.org/releases/v3.10.3.3007/wix310-binaries.zip
-  - 7z x C:\wix310-binaries.zip -y -r -oC:\wix310
-  - set PATH=C:\wix310;%PATH%
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
-  - cmd /C C:\latest.bat mh-cbon go-msi amd64
-  - set PATH=C:\Program Files\go-msi\;%PATH%
-
-build_script:
-  - set MYAPP=dummy
-  - set GOARCH=386
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
-  - set GOARCH=amd64
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
-
-test: off
-
-artifacts:
-  - path: '*-386.msi'
-    name: msi-x86
-  - path: '*-amd64.msi'
-    name: msi-x64
-
-deploy:
-  - provider: GitHub
-    artifact: msi-x86, msi-x64
-    draft: false
-    prerelease: false
-    description: "Release %APPVEYOR_REPO_TAG_NAME%"
-    auth_token:
-      secure: xxxx
-    on:
-      branch:
-        - master
-        - /v\d\.\d\.\d/
-        - /\d\.\d\.\d/
-      appveyor_repo_tag: true
+{{read "src/appveyor.yml"}}
 EOT
 ```
 
@@ -1269,45 +954,7 @@ $ changelog prepare
 changelog file updated
 
 $ cat change.log
-UNRELEASED
-
-  * packaging: add msi package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.4
-
-  * packaging: add rpm package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.3
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.004.prepare"}}
 
 <go on and edit the change.log to make it useful>
 
@@ -1336,14 +983,7 @@ __One time setup__
 
 To easily install your package, you can use that snippet in your repo,
 
-```sh
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=USER/dummy sh -xe
-# or
-wget -q -O - --no-check-certificate \
-https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=USER/dummy sh -xe
-```
+{{render "linux/gh_pkg" . "User" "USER" "Name" "dummy"}}
 
 Which will detect the running system, detect the last version of the repo `USER/dummy`,
 download a deb or rpm package for the given system,
@@ -1390,13 +1030,7 @@ after_deploy:
 Last step, update the `README.md` to add instructions to setup the new source,
 
 
-```sh
-wget -O - https://raw.githubusercontent.com/mh-cbon/latest/master/source.sh \
-| GH=USER/dummy sh -xe
-# or
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/source.sh \
-| GH=USER/dummy sh -xe
-```
+{{render "linux/gh_src_repo" . "User" "USER" "Name" "dummy"}}
 
 Thats it!
 
@@ -1409,53 +1043,7 @@ $ changelog prepare
 changelog file updated
 
 $ cat change.log
-UNRELEASED
-
-  * packaging: add deb/rpm source repositories
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.5
-
-  * packaging: add msi package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.4
-
-  * packaging: add rpm package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.3
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
+{{read "src/change.log.005.prepare"}}
 
 <go on and edit the change.log to make it useful>
 

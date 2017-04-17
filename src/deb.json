@@ -1,0 +1,23 @@
+{
+  "name": "dummy",
+  "maintainer": "USER <email>",
+  "description": "Say hello",
+  "changelog-cmd": "changelog debian --vars='{\"name\":\"!name!\"}'",
+  "homepage": "http://github.com/USER/!name!",
+  "files": [
+    {
+      "from": "build/!arch!/!name!",
+      "to": "/usr/bin",
+      "base" : "build/!arch!/",
+      "fperm": "0755"
+    }
+  ],
+  "copyrights": [
+    {
+      "files": "*",
+      "copyright": "2016 USER <email>",
+      "license": "MIT ??",
+      "file": "LICENSE"
+    }
+  ]
+}
