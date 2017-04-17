@@ -24,7 +24,7 @@ Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=
 - [distributing app](#distributing-app)
   - [Windows](#windows)
   - [rpm / debian](#rpm--debian)
-- [The end !!](#the-end-!!)
+- [The end !!](#the-end-)
 
 ## TLDR;
 
