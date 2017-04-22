@@ -202,7 +202,7 @@ EOT
 $ git add README.e.md
 $ git commit main.go -m "init: add README"
 
-$ emd gen README.e.md -out README.md
+$ emd gen -in README.e.md -out README.md
 $ git add README.md
 $ git commit main.go -m "init: generate README"
 ```
@@ -379,7 +379,7 @@ PREVERSION=
 
 ```sh
 PREVERSION=
-  emd gen README.e.md -out README.md
+  emd gen -in README.e.md -out README.md
   git commit README.md -m "README: !newversion!"
 ```
 

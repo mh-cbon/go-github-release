@@ -286,7 +286,7 @@ EOT
 $ git add README.e.md
 $ git commit main.go -m "init: add README"
 
-$ emd gen README.e.md > README.md
+$ emd gen -in README.e.md -out README.md
 $ git add README.md
 $ git commit main.go -m "init: generate README"
 ```
@@ -392,7 +392,7 @@ PREVERSION=
   go run main.go
   changelog finalize --version !newversion!
   git commit change.log -m "changelog: !newversion!"
-  emd gen README.e.md > README.md
+  emd gen -in README.e.md > README.md
   git commit README.md -m "README: !newversion!"
   changelog md -o CHANGELOG.md --vars='{"name":"dummy"}'
   git commit CHANGELOG.md -m "changelog.md: !newversion!"
@@ -523,7 +523,7 @@ PREVERSION=
 
 ```sh
 PREVERSION=
-  emd gen README.e.md > README.md
+  emd gen -in README.e.md -out README.md
   git commit README.md -m "README: !newversion!"
 ```
 
