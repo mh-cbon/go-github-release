@@ -2,6 +2,10 @@
 
 HOWTO implement a feature complete release software flow over github.
 
+Demonstrated with a `go` project,
+made with the power of `go`,
+it can benefit to any project of any language.
+
 Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=37s)/.
 
 # TOC
