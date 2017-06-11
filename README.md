@@ -291,11 +291,11 @@ $ cat <<EOT > src/README.e.md
 EOT
 
 $ git add README.e.md
-$ git commit main.go -m "init: add README"
+$ git commit README.e.md -m "init: add README"
 
 $ emd gen -in README.e.md -out README.md
 $ git add README.md
-$ git commit main.go -m "init: generate README"
+$ git commit README.md -m "init: generate README"
 ```
 
 That's it! The new `README` file generated looks likes this,
