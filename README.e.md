@@ -890,7 +890,7 @@ $ VERSION=x.x.x
 # revert, fix then restart
 $ git tag -d $VERSION
 $ git push origin :$VERSION
-$ gh-api-cli rm-release --tag -n <auth name> -o USER -r dummy --ver $VERSION
+$ gh-api-cli rm-release -n <auth name> -o USER -r dummy --ver $VERSION
 # rename last release to UNRELEASED
 $ changelog rename
 # fix to the pipeline
