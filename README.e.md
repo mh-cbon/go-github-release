@@ -933,10 +933,10 @@ __Procedure__
 ```sh
 $ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
 # or
-travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
+$ travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
 ```
 
-see also [gh-api-cli](https://github.com/mh-cbon/gh-api-cli),
+see also [gh-api-cli](https://github.com/mh-cbon/gh-api-cli)
 
 # The end !!
 
