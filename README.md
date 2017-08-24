@@ -31,7 +31,7 @@ that can benefit to any project of any language,
 - [distributing app](#distributing-app)
   - [Windows](#windows)
   - [rpm / debian](#rpm--debian)
-- [Oops, it failed :s](#oops-it-failed-:s)
+- [Oops, it failed :s](#oops-it-failed-s)
 - [The end !!](#the-end-)
 
 ## TLDR;
@@ -1476,8 +1476,9 @@ failure
 # revert, fix then restart
 $ git tag -d x.x.x
 $ gh-api-cli rm-release -n <auth name> -o USER -r dummy --ver x.x.x
-$ changelog rename # will select last release automatically, will rename ot UNRELEASED automatically
-# do the fix to the pipeline
+# rename last release to UNRELEASED
+$ changelog rename
+# fix to the pipeline
 $ gump patch # again
 ```
 
