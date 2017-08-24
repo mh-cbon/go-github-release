@@ -31,6 +31,7 @@ that can benefit to any project of any language,
 - [distributing app](#distributing-app)
   - [Windows](#windows)
   - [rpm / debian](#rpm--debian)
+- [Oops, it failed :s](#oops-it-failed-:s)
 - [The end !!](#the-end-)
 
 ## TLDR;
@@ -1352,6 +1353,12 @@ Update `env` section of the `.travis.yml` file, using `travis cli client`, to cr
 $ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
 ```
 
+If you use [gh-api-cli](https://github.com/mh-cbon/gh-api-cli),
+
+```sh
+travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
+```
+
 The env section should now look like this
 
 ```yaml
@@ -1446,6 +1453,32 @@ $ gump major
 .. commands output
 Created new tag 1.0.0
 .. commands output
+```
+
+# Oops, it failed :s
+
+For various reasons the build might fail, on bump or during the ci,
+in such case you are left with a project in a loosy state.
+
+For example, you might end up with,
+- a git tag
+- a gh release
+- failed ci did not produce packages
+
+The simplest solution is to simply remove traces of that broken release,
+fix the bump pipeline, then bump again.
+
+```sh
+$ gump patch
+...
+failure
+....
+# revert, fix then restart
+$ git tag -d x.x.x
+$ gh-api-cli rm-release -n <auth name> -o USER -r dummy --ver x.x.x
+$ changelog rename # will select last release automatically, will rename ot UNRELEASED automatically
+# do the fix to the pipeline
+$ gump patch # again
 ```
 
 # The end !!
