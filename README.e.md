@@ -886,14 +886,57 @@ $ gump patch
 ...
 failure
 ....
+$ VERSION=x.x.x
 # revert, fix then restart
-$ git tag -d x.x.x
-$ gh-api-cli rm-release -n <auth name> -o USER -r dummy --ver x.x.x
+$ git tag -d $VERSION
+$ git push origin :$VERSION
+$ gh-api-cli rm-release --tag -n <auth name> -o USER -r dummy --ver $VERSION
 # rename last release to UNRELEASED
 $ changelog rename
 # fix to the pipeline
 $ gump patch # again
 ```
+
+# Errors reference
+
+Find various errors messages and their quick solution
+
+### GET https://api.github.com/repo...: 401 Bad credentials []
+
+__Reference__
+
+```sh
+$ gh-api-cli rm-assets --guess --ver 1.0.0 -t $GH_TOKEN --glob "*.deb"
+GET https://api.github.com/repos/mh-cbon/go-bin-rpm/releases?page=1&per_page=200: 401 Bad credentials []
+panic: exit status 1
+goroutine 1 [running]:
+...
+> The command "curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=$GH sh -xe" failed and exited with 2 during .
+```
+
+__Reason__
+
+`$GH_TOKEN` passed to `gh-api-cli` is wrong (empty, revocated, not exisitng).
+
+__Solution__
+
+Using `travis` client re generate the `secure environment variable` that you should find into the `.travis.yml` file.
+
+```yml
+env:
+  global:
+    - secure: StXdvc/gCv6u/hIqw0clmV0xsgcjUSMwo.....
+```
+
+__Procedure__
+
+```sh
+$ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
+# or
+travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
+```
+
+see also [gh-api-cli](https://github.com/mh-cbon/gh-api-cli),
 
 # The end !!
 
