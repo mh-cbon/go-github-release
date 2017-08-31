@@ -10,7 +10,7 @@ it provides concerns-centric lightweight tools
 that can benefit to any project of any language,
 [Issue #15](https://github.com/mh-cbon/go-github-release/issues/15)
 
-<a href="https://app.codesponsor.io/link/aHBhB5M68Fescjjp9VC9TtJs/mh-cbon/go-msi" rel="nofollow"><img src="https://app.codesponsor.io/embed/aHBhB5M68Fescjjp9VC9TtJs/mh-cbon/go-msi.svg" style="width: 888px; height: 68px;" alt="Sponsor" /></a>
+<a href="https://app.codesponsor.io/link/aHBhB5M68Fescjjp9VC9TtJs/mh-cbon/go-github-release" rel="nofollow"><img src="https://app.codesponsor.io/embed/aHBhB5M68Fescjjp9VC9TtJs/mh-cbon/go-github-release.svg" style="width: 888px; height: 68px;" alt="Sponsor" /></a>
 
 # {{toc 5}}
 
