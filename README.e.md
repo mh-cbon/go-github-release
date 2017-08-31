@@ -5,7 +5,7 @@ HOWTO implement a feature complete release software flow over github.
 Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=37s)/.
 
 Made with the power of `go`,
-built by unix philsophy,
+built with [unix philsophy](https://en.wikipedia.org/wiki/Unix_philosophy),
 it provides concerns-centric lightweight tools
 that can benefit to any project of any language,
 [Issue #15](https://github.com/mh-cbon/go-github-release/issues/15)
