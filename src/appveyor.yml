@@ -1,49 +1,94 @@
-version: "{build}"
-os: Windows Server 2012 R2
-clone_folder: c:\gopath\src\github.com\USER\dummy
+image: Visual Studio 2017
+clone_folder: c:\gopath\src\github.com\%APPVEYOR_REPO_NAME%
+
+# set to false to build on any commit.
 skip_non_tags: true
 
 environment:
+  # improve readability
+  VCS_URL: https://github.com/%APPVEYOR_REPO_NAME%
+  GH_APP: %APPVEYOR_PROJECT_NAME%
+  GH_USER: %APPVEYOR_ACCOUNT_NAME%
+  VERSION: %APPVEYOR_REPO_TAG_NAME%
+  # specific to go
   GOPATH: c:\gopath
-  GO15VENDOREXPERIMENT: 1
+  # specific to bintray
+  JFROG_CLI_OFFER_CONFIG: false
+  #  define secure tokens
+  CHOCOKEY:
+    secure: xxx
+  BT_KEY:
+    secure: yyy
+  GH_TOKEN:
+    secure: zzz
 
+# prepare system and project
 install:
-  - curl -fsSL -o C:\wix310-binaries.zip http://static.wixtoolset.org/releases/v3.10.3.3007/wix310-binaries.zip
-  - 7z x C:\wix310-binaries.zip -y -r -oC:\wix310
-  - set PATH=C:\wix310;%PATH%
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
-  - cmd /C C:\latest.bat mh-cbon go-msi amd64
-  - set PATH=C:\Program Files\go-msi\;%PATH%
+  # install required software
+  - choco source add -n=mh-cbon -s="https://api.bintray.com/nuget/mh-cbon/choco"
+  - choco install changelog gh-api-cli go-msi -y
+  - refreshenv
+  # to test the build on non tag commits.
+  - if "%x%"=="%VERSION%" set VERSION=1.0.2
+  # ensure wix is available in PATH
+  - set PATH=%WIX%\bin;%PATH%
+  # fetch bintray client
+  - curl -fsSk -o jfrog.exe -L "https://api.bintray.com/content/jfrog/jfrog-cli-go/$latest/jfrog-cli-windows-amd64/jfrog.exe?bt_package=jfrog-cli-windows-amd64"
+  # specific to go
+  - set PATH=%GOPATH%\bin;%PATH%
+  - go get -u github.com/mh-cbon/never-fail
+  - go get -u github.com/Masterminds/glide
+  - glide install
 
+test_script:
+  - go test
+  - go run main.go
+
+# build msi artifacts
 build_script:
-  - set MYAPP=dummy
+  # build the program for x386 arch
   - set GOARCH=386
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
+  - go build -o %GH_APP%.exe --ldflags "-X main.VERSION=%VERSION%" main.go
+  # generate the x386 MSI package
+  - go-msi make --msi %GH_APP%-%GOARCH%-%VERSION%.msi --version %VERSION% --arch %GOARCH%
+  # build a cross platform x386 nuget package.
+  - go-msi choco --path wix.json --version %VERSION% --input %GH_APP%-%GOARCH%-%VERSION%.msi --changelog-cmd "changelog ghrelease --version %VERSION%"
+  # build the program for amd64 arch
   - set GOARCH=amd64
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
+  - go build -o %GH_APP%.exe --ldflags "-X main.VERSION=%VERSION%" main.go
+  # generate the amd64 MSI package
+  - go-msi make --msi %GH_APP%-%GOARCH%-%VERSION%.msi --version %VERSION% --arch %GOARCH%
 
-test: off
-
+# configure the artifacts to upload to the github releae page
 artifacts:
   - path: '*-386.msi'
     name: msi-x86
   - path: '*-amd64.msi'
     name: msi-x64
 
+# setup the github release page upload
 deploy:
   - provider: GitHub
     artifact: msi-x86, msi-x64
+    force_update: false
     draft: false
     prerelease: false
     description: "Release %APPVEYOR_REPO_TAG_NAME%"
     auth_token:
       secure: xxxx
     on:
-      branch:
-        - master
-        - /v\d\.\d\.\d/
-        - /\d\.\d\.\d/
       appveyor_repo_tag: true
+
+# deploy the nuget/msi packages to bintray
+deploy_script:
+  # setup both "choco" and "msi" repositories on bintray
+  - never-fail jfrog bt pc --user %GH_USER% --key %BT_KEY% --licenses=MIT --vcs-url=https://github.com/%APPVEYOR_REPO_NAME% %GH_USER%/msi/%GH_APP%
+  - never-fail jfrog bt pc --user %GH_USER% --key %BT_KEY% --licenses=MIT --vcs-url=https://github.com/%APPVEYOR_REPO_NAME% %GH_USER%/choco/%GH_APP%
+  # upload the nupkg
+  - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%.%VERSION%.nupkg %GH_USER%/choco/%GH_APP%/%VERSION%
+  # upload the x386 msi artifact
+  - set GOARCH=386
+  - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%-%GOARCH%-%VERSION%.msi %GH_USER%/msi/%GH_APP%/%VERSION%
+  # upload the amd64 msi artifact
+  - set GOARCH=amd64
+  - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%-%GOARCH%-%VERSION%.msi %GH_USER%/msi/%GH_APP%/%VERSION%

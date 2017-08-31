@@ -4,8 +4,7 @@ HOWTO implement a feature complete release software flow over github.
 
 Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=37s)/.
 
-Demonstrated with a `go` project,
-made with the power of `go`,
+Made with the power of `go`,
 built by unix philsophy,
 it provides concerns-centric lightweight tools
 that can benefit to any project of any language,
@@ -13,46 +12,61 @@ that can benefit to any project of any language,
 
 # TOC
 - [TLDR;](#tldr)
+- [head first](#head-first)
+  - [a github account](#a-github-account)
+  - [a bintray account](#a-bintray-account)
+  - [windows users](#windows-users)
+  - [debian users](#debian-users)
+  - [rpm users](#rpm-users)
 - [a dummy project](#a-dummy-project)
 - [maintaining a changelog](#maintaining-a-changelog)
   - [In practice](#in-practice)
-- [keep your README up to date](#keep-your-readme-up-to-date)
+- [maintain a README](#maintain-a-readme)
   - [In practice](#in-practice-1)
 - [bump a package](#bump-a-package)
   - [In practice](#in-practice-2)
-  - [gh-api-cli](#gh-api-cli)
-  - [integration](#integration)
-- [packaging for debian](#packaging-for-debian)
-  - [In practice](#in-practice-3)
-- [packaging for rpm](#packaging-for-rpm)
-  - [In practice](#in-practice-4)
-- [packaging for windows](#packaging-for-windows)
-  - [In practice](#in-practice-5)
-- [distributing app](#distributing-app)
-  - [Windows](#windows)
-  - [rpm / debian](#rpm--debian)
+  - [notes about .version.sh](#notes-about-versionsh)
+- [github releases](#github-releases)
+- [various other useful cross-platform tools](#various-other-useful-cross-platform-tools)
+  - [specifically for go](#specifically-for-go)
+- [packaging](#packaging)
+  - [working with travis](#working-with-travis)
+  - [working with appveyor](#working-with-appveyor)
+  - [working with bintray](#working-with-bintray)
+  - [debian](#debian)
+    - [In practice](#in-practice-3)
+    - [Using travis](#using-travis)
+  - [RPM](#rpm)
+    - [In practice](#in-practice-4)
+    - [Using travis](#using-travis-1)
+  - [windows](#windows)
+    - [In practice](#in-practice-5)
+    - [Using appveyor](#using-appveyor)
+  - [github release page](#github-release-page)
+- [distribution](#distribution)
 - [Oops, it failed :s](#oops-it-failed-s)
 - [Errors reference](#errors-reference)
-  - [GET https://api.github.com/repo...: 401 Bad credentials []](#get-httpsapigithubcomrepo-401-bad-credentials-)
 - [The end !!](#the-end-)
 
 ## TLDR;
 
-Throughout this HOWTO several softwares and methods are presented to release a
-**ready-to-install** package of a github repository with a two steps command:
+During this guide several softwares and methods are presented to produces
+**ready-to-install** artifacts of your project with a two steps command:
 
 ```sh
-<some changes to the software was made>
+... <apply some changes to the software>
+
 $ changelog prepare
 <manually edit the changelog>
+
 $ gump <prerelese|patch|minor|major>
-<the factory realize all the steps to
-publish the new version,
-produce the packages,
-push them to public cloud service>
+< the factory realize all the steps to
+  publish the new version,
+  produce the packages,
+  push them to public cloud service>
 ```
 
-By then end of this HOWTO you ll acquire reproducible techniques to
+By then end of this guie you will acquire reproducible techniques to
 - maintain a changelog, with [changelog](https://github.com/mh-cbon/changelog)
 - maintain a README, with [emd](https://github.com/mh-cbon/emd)
 - bump your package, with [gump](https://github.com/mh-cbon/gump)
@@ -60,12 +74,79 @@ By then end of this HOWTO you ll acquire reproducible techniques to
 - produce debian packages, with [go-bin-deb](https://github.com/mh-cbon/go-bin-deb)
 - produce rpm packages, with [go-bin-rpm](https://github.com/mh-cbon/go-bin-rpm)
 - produce windows installers, with [go-msi](https://github.com/mh-cbon/go-msi)
-- produce debian repository over `gh-pages`
-- produce rpm repository over `gh-pages`
+- produce `chocolatey` repository on `bintray`
+- produce `debian` repository over `bintray`
+- produce `rpm` repository over `bintray`
+
+## head first
+
+You might want to setup, or prepare, the required softwares on your computer.
+
+#### a github account
+
+Not everything you will read does require a github account, although,
+this guide uses it to demonstrate a real world example,
+thus, get one if you did not already signed up.
+
+#### a bintray account
+
+Specifically for the deployment of your artifacts on a repository,
+it has `oss` support, you can sign up with your github account.
+
+#### windows users
+
+- Install chocolatey https://chocolatey.org/install
+
+- Add this repository
+
+```sh
+$ choco source add -n=mh-cbon -s="https://api.bintray.com/nuget/mh-cbon/choco"
+```
+
+- Install a software
+
+```sh
+$ choco install <software> -y
+$ refreshenv
+```
+
+#### debian users
+
+- Add this repository
+
+```sh
+$ sudo add-apt-repository 'deb https://dl.bintray.com/mh-cbon/deb unstable main'
+```
+
+- Update the metadata
+
+```sh
+$ sudo apt-get -qq update
+```
+
+- Install a software
+
+```sh
+$ sudo apt-get install --allow-unauthenticated <sofware>
+```
+
+#### rpm users
+
+- Add this repository
+
+```sh
+$ sudo curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/mh-cbon.repo
+```
+
+- Install a software
+
+```sh
+$ sudo dnf install <sofware> -y
+```
 
 ## a dummy project
 
-To illustrate this HOWTO, let s create a dummy application, written in `go`
+To illustrate this guide, let s create a dummy application, written in `go`, might be any language.
 
 ```sh
 $ mkdir $GOPATH/src/github.com/USER/dummy
@@ -108,11 +189,18 @@ $ git commit main.go -m "init: add main"
 $ go run main.go
 hello
 
-$ git remote add origin git@github.com/USER/dummy
-$ curl -u 'USER' https://api.github.com/USER/repos -d '{"name":"dummy"}'
+# create teh repo in your github account
+$ xdg-open https://github.com/new
+
+# push
 $ git remote add origin git@github.com:USER/dummy.git
 $ git push --set-upstream origin master
 ```
+
+At that point you do have a,
+- a git repository with a first commit
+- a git remote pointing to your github repository
+- a github repository
 
 ## maintaining a changelog
 
@@ -122,22 +210,23 @@ $ git push --set-upstream origin master
 
 > A changelog has historically included all changes made to a project. The "Keep a CHANGELOG" site instead advocates that a changelog not include all changes, but that it should instead contain "a curated, chronologically ordered list of notable changes for each version of a project" and should not be a "dump" of a git log "because this helps nobody".[1]
 
-If you have followed the wikipedia link,
-you may have noticed that a CHANGELOG is not defined by a file format,
-rather than it is a practice to communicate to the community of users.
+If you read the wikipedia link,
+you may have noticed that a `CHANGELOG` is not defined by a file format,
+instead, it is a practice to communicate to the community of users.
 
-Problem is that in the wonderful world of software factory, multiple tool,
-from multiple different world, with multiple different opinions all desperately
-invite or enforce you to produce a changelog file in their own format.
+Now the problem is presents this way for us: in the wonderful world of software factory,
+multiple tool, from multiple different vendors, with multiple different opinions, about this or that /wahtever/,
+all desperately invite or enforce you to produce a changelog file in their own __incompatible__ format,
+in the best case. In the worst case it is simply ignored.
 
-That is why [changelog](https://github.com/mh-cbon/changelog) was written:
-- to provide one format to rule them all
-- to integrate into a well defined software factory process
-- to ease and help the developer in maintaining the CHANGELOG file
+To solve that situation, [changelog](https://github.com/mh-cbon/changelog) was written:
+- it provides one format to rule them all
+- it integrates seemlessly into a software factory process
+- it simplifies and helps the developer to maintain the `CHANGELOG` file
 
 #### In practice
 
-For a new repository the `CHANGELOG` file must be initialized, just roll out
+For a new repository the `CHANGELOG` file must be initialized,
 
 ```sh
 $ changelog init
@@ -146,6 +235,7 @@ changelog file created
 $ ls -al change.log
 -rw-rw-r-- ... change.log
 
+# This is a pending change log.
 $ cat change.log
 UNRELEASED
 
@@ -156,14 +246,18 @@ UNRELEASED
 
 -- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
 
+# Add and commit this file to your repository
 $ git add change.log
 $ git commit change.log -m "init: changelog"
 ```
 
-`changelog` generates a `change.log` file, it contains the list of tags,
-with their associated commits in chronological order.
+`changelog` generates a `change.log` file,
+for each tags (or versions) existing in the repository,
+it creates a new version with its associated commits in chronological order.
 
-When a new version is about to release, changes for the next version needs to be prepared, run
+The `UNRELEASED` version you are seeing now, is a intermediary version containing the changes for the upcoming release.
+
+When a new version is about to be released, changes for the next version needs to be gathered, run
 
 ```sh
 $ changelog prepare
@@ -181,10 +275,15 @@ UNRELEASED
 -- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
 ```
 
-As stated before in the quote, dumping the contents of the commits log is
-often not desirable and produces a poorly helpful `CHANGELOG` content.
+This `prepare` state is here to invite to manually *update*, *fix*,
+*re-arrange* the content of the changelog before it is finalized.
 
-Let s change the content of the the next release,
+It is the good moment to check your commits, identify the useless commit messages,
+group them around a functionnality or feature.
+
+In this example we have various different commit messages with more or less the same meaning,
+also the content of those commit are truely useless to everybody,
+for clarity, lets rewrite it in this way
 
 ```
 UNRELEASED
@@ -196,15 +295,15 @@ UNRELEASED
 -- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
 ```
 
-(not much to say so far, you ll agreed on that)
-
-Finally, let s manually roll out our first version
-before we learn how to do that automatically,
+Finally, let s manually create the first version
+before we review the steps to do that via automation,
 
 ```sh
+# promote UNRELEASED changes to 0.0.1
 $ changelog finalize --version=0.0.1
 changelog file updated
 
+# Verify the content
 $ cat change.log
 0.0.1
 
@@ -214,6 +313,7 @@ $ cat change.log
 
 -- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
 
+# export the change.log file to a markdwon compatible format
 $ changelog md -o CHANGELOG.md --vars='{"name":"dummy"}'
 
 $ cat CHANGELOG.md
@@ -232,17 +332,19 @@ __Contributors__
 Released by USER, Tue 21 Jun 2016
 ______________
 
+# saves those new changes
 $ git add CHANGELOG.md
 $ git commit CHANGELOG.md -m "init: github changelog"
-
 $ git commit change.log -m "tag 0.0.1"
+
+# create a tag in your vcs
 $ git tag 0.0.1
 $ git tag
 0.0.1
 $ git push --all
 ```
 
-## keep your README up to date
+## maintain a README
 
 https://en.wikipedia.org/wiki/README
 
@@ -265,20 +367,21 @@ The contents typically include one or more of the following:
     - A changelog (usually for programmers)
     - A news section (usually for users)
 
-One to many activities and information to perform to maintain a `README`,
+Many activities to perform to maintain a `README`,
 
-Some such as `installation instructions`, `contact` or `licensing` are typically one time information that does not change a lot.
+Some of those such as `installation instructions`, `contact` or `licensing` are usually a one time setup that does not change a lot.
 
-Others such as `file manifest`, `usage`, `code example` are likely to change as the software changes, this is where maintenance need appears.
+Other sections such as `file manifest`, `usage`, `code example` are likely to change as the software evolves,
+this is where maintenance help is needed.
 
-To help with `emd` provides an enhanced makrdown engine on top of `go` template package,
-provided with features specifically designed to help this maintenance task.
+To help with those concerns `emd` provides an engine on top of the `go` template package,
+it includes features specifically designed to help with this maintenance task.
 
 Check the detailed documentation at [emd](https://github.com/mh-cbon/emd#toc)
 
 #### In practice
 
-Create a new file where you want to have a README file,
+Create a new file `README.e.md` which will contain the template to generate the final `README.md`,
 
 ```sh
 $ cat <<EOT > src/README.e.md
@@ -293,15 +396,17 @@ $ cat <<EOT > src/README.e.md
 #### $ {{exec "go" "run" "main.go" | color "sh"}}
 EOT
 
+# commit this template to your repo for future update of the README
 $ git add README.e.md
 $ git commit main.go -m "init: add README"
 
+# generate/commit the final README file
 $ emd gen -in README.e.md -out README.md
 $ git add README.md
 $ git commit main.go -m "init: generate README"
 ```
 
-That's it! The new `README` file generated looks likes this,
+That's it! The new `README.md` file  contains,
 
 ```md
   # hello
@@ -319,7 +424,7 @@ That's it! The new `README` file generated looks likes this,
   ` ``
 ```
 
-Now it s easier to update the program and to maintain the `README` file.
+Now it s easier to maintain the `README` file.
 
 ## bump a package
 
@@ -331,17 +436,22 @@ In [semver](http://semver.org/) semantics version are expressed such as `<major>
 
 > version numbers and the way they change convey meaning about the underlying code and what has been modified from one version to the next.
 
-In practice changing a version number involves numerous side operations.
+In practice changing a version number involves many side operations,
 
-As presented previously
-- `CHANGELOG` needs to be updated,
+- the `CHANGELOG` needs to be updated,
 - the tag needs to be created,
 - the remote needs to be synced,
+- the `README` might need a refresh
+- linters needs to run
+- tests needs to run
 - and many more
 
-That is why [gump](https://github.com/mh-cbon/gump) was written:
-- change version using verb rather than numerical values
+[gump](https://github.com/mh-cbon/gump) was written to let you automate as many tasks as possible around that central task of version bump:
+- bump using `verbs` rather than numerical values
 - run pre/post operations to the version bumping
+
+It does not compete with well-known tools like `make`, those two softwares are similar, but different,
+a `make` user should keep using `make` and load it into `gump`.
 
 ### In practice
 
@@ -356,15 +466,16 @@ Usage:
   gump patch [-d|--dry] [-m <message>]
   gump minor [-d|--dry] [-m <message>]
   gump major [-d|--dry] [-m <message>]
-
 ```
 
+That s all, 4 `verbs`, 4 `flags`.
+
 However, it provides the ability to declare a file `.version.sh` to define
-numerous hooks related to the action of version bumping.
+various hooks related to the action of version bumping:
 
 ```sh
 PREBUMP=
-  echo "before bumping"
+  echo "before bumping, any verb"
 PREPATCH=
   echo "before bumping to patch"
 PREMINOR=
@@ -373,9 +484,9 @@ PREMAJOR=
   echo "before bumping to major"
 
 PREVERSION=
-  echo "before bumping the version"
+  echo "before bumping the version, any verb"
 POSTVERSION=
-  echo "after version bumped"
+  echo "after version bumped, any verb"
 
 POSTMAJOR=
   echo "after version bumped to major"
@@ -384,32 +495,41 @@ POSTMINOR=
 POSTPATCH=
   echo "after version bumped to patch"
 POSTBUMP=
-  echo "after bumping"
+  echo "after bumping, any verb"
 ```
 
-Using that file, let s apply process automation to our release process,
-
+Using that file, it is now possible to define tasks to run before / after a specific kind of bump verb,
 
 ```sh
 $ cat <<EOT > .version.sh
+# PREBUMP runs for all kinds of bump
 PREBUMP=
+  # it is usefull to make sure local is in sync with remote
   git fetch --tags origin master
   git pull origin master
 
+# PREVERSION runs for any kinds of bump, it the last pre-hook
 PREVERSION=
+  # use it to declare tasks that should run for any kind of bump
   go vet ./...
   go fmt ./...
-  go run main.go
+  go run main.go # alike tests when you don t have tests
+  # finalize the changelog
   changelog finalize --version !newversion!
   git commit change.log -m "changelog: !newversion!"
+  # update the README
   emd gen -in README.e.md > README.md
   git commit README.md -m "README: !newversion!"
+  # generate a markdwon version of your changelog
   changelog md -o CHANGELOG.md --vars='{"name":"dummy"}'
   git commit CHANGELOG.md -m "changelog.md: !newversion!"
 
+# POSTVERSION runs for any kind of bumps
 POSTVERSION=
+  # use it to sync your local to the remote
   git push
   git push --tags
+  # create a github release
   gh-api-cli create-release -n release -o USER -r dummy \
    --ver !newversion!  --draft !isprerelease! \
    -c "changelog ghrelease --version !newversion!"
@@ -419,11 +539,10 @@ $ git add .version.sh
 $ git commit .version.sh -m "init: bump script"
 ```
 
-Let s now roll out a new version.
-
-The changelog must be updated,
+Those are the steps to bump the project,
 
 ```sh
+# gather your last changes
 $ changelog prepare
 changelog file updated
 
@@ -443,20 +562,17 @@ UNRELEASED
   - USER <email>
 
 -- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
-```
 
-- go on and edit the change.log to make it useful,
+# update the content of the UNRELEASED version
+# ....
 
-- The bumper must be invoked,
-
-```sh
+# invoke the bumper with the next version
 $ gump patch
-.. commands output
 Created new tag 0.0.2
-.. commands output
+...
 ```
 
-That's it!
+That's it, the project version `0.0.1` is patch-bumped to `0.0.2`
 
 ```sh
 $ cat CHANGELOG.md
@@ -493,9 +609,9 @@ $ git tag
 0.0.1
 ```
 
-Let s do a quick step-by-step review of this `.version.sh` file.
+### notes about .version.sh
 
-In first, it worth to note that the syntax is cross-platform,
+It worth to note that the syntax is cross-platform,
 [stackoverflow](http://stackoverflow.com/a/8055430/4466350).
 
 [gump](https://github.com/mh-cbon/gump) takes care to handle '\' EOL appropriately.
@@ -508,8 +624,7 @@ PREBUMP=
   git pull origin master
 ```
 
-- For every version to bump, ensure the go looks good, and works.
-Its the right place to put your go test,
+- For every version to bump, its good to ensure the linters/tests/compile all passes.
 
 ```sh
 PREVERSION=
@@ -518,48 +633,10 @@ PREVERSION=
   go run main.go
 ```
 
-- Finalize and commit the `change.log` file automatically.
-This step also make sure you prepared the `change.log`,
-so if you stubble upon an error messages, make sure you ran `changelog prepare`!
-
-```sh
-PREVERSION=
-  changelog finalize --version !newversion!
-  git commit change.log -m "changelog: !newversion!"
-```
-
-
-- Generate and commit a markdowned version of the `README`.
-
-```sh
-PREVERSION=
-  emd gen -in README.e.md -out README.md
-  git commit README.md -m "README: !newversion!"
-```
-
-
-- Generate and commit a markdowned version of the `CHANGELOG` for better readability.
-
-```sh
-PREVERSION=
-  changelog md -o CHANGELOG.md --vars='{"name":"dummy"}'
-  git commit CHANGELOG.md -m "changelog.md: !newversion!"
-```
-
-- At that moment the new version is created on the vcs.
-
-- Push the changes on the remote !
-
-```sh
-POSTVERSION=
-  git push
-  git push --tags
-```
-
-- Create a new github release in the repo `github.com/USER/dummy`,
-set it drafted if the version is a prerelease like `beta|alpha`,
+- use `POSTVERSION` to implement the setup / creation of artifacts from your computer without the help of a cloud ci.
+In this example, it creates a new github release in the repo `github.com/USER/dummy`,
+set it drafted if the version is a prerelease such as `beta|alpha`,
 attach an extract of the version changes to the new release.
-
 
 ```sh
 POSTVERSION=
@@ -568,65 +645,167 @@ POSTVERSION=
    -c "changelog ghrelease --version !newversion!"
 ```
 
-### gh-api-cli
+## github releases
 
-Install `gh-api-cli` [from here](https://github.com/mh-cbon/gh-api-cli/),
-then add a new `release` personal access token with
+To work with github [apis](https://developer.github.com/v3/), this guide uses `gh-api-cli` a cross-platform command line utility
+
+For a detailed documentation [visit](https://github.com/mh-cbon/gh-api-cli/).
+
+__tokens__
+
+For that current guide, `gh-api-cli` helps to deal with github `personal access tokens`.
+
+Those tokens are useful to realize api calls that requires authentification.
+
+Later you will learn how to inject those tokens into your CI files such `travis`, `appveyor`, `you name it.`
+
+Lets create a new token with the name `release`,
 
 ```sh
 $ gh-api-cli add-auth -n release -r repo
+.. provides the details
 ```
 
-### integration
+The token is stored in a json file located at `~/gh-auths.json`.
 
-To go further, it is recommended to switch some of those tools to a more appropriate version,
-- [philea](https://github.com/mh-cbon/philea) instead of `./...`
-- [go-fmt-fail](https://github.com/mh-cbon/go-fmt-fail) instead of `go fmt`
-- [commit](https://github.com/mh-cbon/commit) instead of `git commit`
-- [666](https://github.com/mh-cbon/666) for better output
+You can retrieve token values with
 
-But yet, this is all up to your convenience, it would perfetly fit into a `Makefile` too!
+```sh
+$ TOKEN=`gh-api-cli get-auth -n release`
+$ echo $TOKEN
+```
 
-## packaging for debian
+__protip__
+
+Sometimes it is useful to be able to upload assets by your own,
+
+```sh
+gh-api-cli upload-release-asset -t <gh token> -g <glob> -o <gh repo user> -r <gh repo name> --ver <version>
+# or
+gh-api-cli upload-release-asset -n <token name> -g <glob> -o <gh repo user> -r <gh repo name> --ver <version>
+```
+
+## various other useful cross-platform tools
+
+Find various small cross-platform tools to use into your scripts,
+
+- file pattern matching [philea](https://github.com/mh-cbon/philea)
+- commit files with convenience [commit](https://github.com/mh-cbon/commit)
+- improve output [666](https://github.com/mh-cbon/666)
+- ignore failures [never-fail](https://github.com/mh-cbon/never-fail)
+- run commands in parallel [cct](https://github.com/mh-cbon/cct)
+- rm with pattern matching [rm-glob](https://github.com/mh-cbon/rm-glob)
+- create `zip/tar-gz` archives [archive](https://github.com/mh-cbon/archive)
+
+#### specifically for go
+
+- fail the formating changed [go-fmt-fail](https://github.com/mh-cbon/go-fmt-fail)
+- one-liner go build [build-them-all](https://github.com/mh-cbon/build-them-all)
+
+
+## packaging
+
+This section will guide you to create platforms specific packages.
+
+To build platforms specific packages, the corresponding OS must be run,
+
+You can use a [vagrant](https://www.vagrantup.com/) box,
+a [docker](https://www.docker.com) image,
+this guide will use [travis](http://travis-ci.org/)
+and [appveyor](http://appveyor.com/)
+
+### working with travis
+
+Connect your `github` account to `travis` and enable your repository
+
+```sh
+xdg-open http://travis-ci.org/ # link the github account
+xdg-open https://travis-ci.org/profile/USER # enable the repository
+```
+
+To encrypt a token, you can use an [online](https://travis-encrypt.github.io/) encryptor,
+or the travis cli, read the doc anyway https://docs.travis-ci.com/user/encryption-keys/
+
+To install the [travis client](https://github.com/travis-ci/travis.rb#installation),
+
+```sh
+$ gem install travis -v 1.8.2 --no-rdoc --no-ri
+```
+
+__protip__
+
+```sh
+travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
+```
+
+### working with appveyor
+
+Connect your `github` account to `appveyor` and enable your repository
+
+```sh
+xdg-open https://ci.appveyor.com/
+xdg-open https://ci.appveyor.com/projects/new
+```
+
+To encrypt a token, go to
+
+```sh
+xdg-open https://ci.appveyor.com/tools/encrypt
+```
+
+__notes__: unlike travis, appveyor let you re use the same encrypted variable in every project you enable.
+
+For advanced setup, you might find helpful to have a local vagrant running windows,
+please check [this link](https://github.com/mh-cbon/go-msi/blob/master/unice-recipe.md).
+
+### working with bintray
+
+signup to bintray
+
+```sh
+xdg-open https://bintray.com/signup/oss
+```
+
+Open your bintray acccount, signin, then create 4 repositories:
+- msi
+- choco
+- deb
+- rpm
+
+__token__
+
+find your token at `https://bintray.com/profile/edit` > `API KEY`
+
+__protip__
+
+Delete an asset on `bintray` in a cross platform way
+```sh
+never-fail curl -X "DELETE" -u<USER>:<BTKEY> https://api.bintray.com/content/<USER>/choco/<file path>
+```
+
+Make sure to set this environment variable in your CI `JFROG_CLI_OFFER_CONFIG=false`
+
+### debian
 
 [debian wiki](https://wiki.debian.org/Packaging)
 
-> A Debian package is a collection of files that allow for applications or libraries to be distributed via the Debian package management system. The aim of packaging is to allow the automation of installing, upgrading, configuring, and removing computer programs for Debian in a consistent manner.
+> A Debian package is a collection of files that allow for applications or libraries to be distributed via the Debian package management system.
+> The aim of packaging is to allow the automation of installing, upgrading, configuring, and removing computer programs for Debian in a consistent manner.
 
 [debian binary package](https://wiki.debian.org/Packaging/BinaryPackage)
 
 > A Debian Package is a file that ends in .deb and contains software for your Debian system.
 > A .deb is also known as a binary package. This means that the program inside the package is ready to run on your system.
 
-Ever tried to create a debian package by your own ? I claim this is not an easy task at all.
+The guide will demonstrate the creation of `debian binary package`.
 
-This HOWTO uncovers solution to automatically produce `binary` debian package out of your repository.
-
-While this is not the holy grail of debian packaging, [go-bin-deb](https://github.com/mh-cbon/go-bin-deb) will be good enough to serve those purposes,
-- distribute your application to non go developers
-- install / remove your application with ease
-- setup services, icons and so on
+While this is not the holy grail of debian packaging,
+[go-bin-deb](https://github.com/mh-cbon/go-bin-deb) will be help you to,
+- distribute your application to non developers
+- install / remove your application via the standard package manager
+- setup services, icons, folders etc
 
 #### In practice
-
-First things first, you need a debian system to properly and securely package debian software.
-
-While you could use a [vagrant](https://www.vagrantup.com/) box,
-a [docker](https://www.docker.com) image,
-this HOWTO suggest to use [travis](http://travis-ci.org/)
-
-Let s connect your github account to travis and enable your repository
-
-```sh
-xdg-open http://travis-ci.org/
-xdg-open https://travis-ci.org/profile/USER
-```
-
-The [travis client](https://github.com/travis-ci/travis.rb#installation) will be required,
-
-```sh
-$ gem install travis -v 1.8.2 --no-rdoc --no-ri
-```
 
 Create a `deb.json` file to describe the package content
 
@@ -650,7 +829,7 @@ $ cat <<EOT > deb.json
     {
       "files": "*",
       "copyright": "2016 USER <email>",
-      "license": "MIT ??",
+      "license": "MIT",
       "file": "LICENSE"
     }
   ]
@@ -658,16 +837,22 @@ $ cat <<EOT > deb.json
 EOT
 ```
 
-Short story is,
+- create a `debian` package with the name `dummy`
+- the license is `MIT` its content is available in the file `LICENSE`
+- there is only one file located at `build/!arch!/dummy` to copy to `/usr/bin`
+- the change list is generated with the command `changelog debian --vars='{\"name\":\"dummy\"}'`
 
-create a package named `dummy` described as `Say hello`,
-the license is `MIT` its content is available in the file `LICENSE`,
-there is only one file located at `build/!arch!/dummy` to copy to `/usr/bin`,
-and the package `CHANGELOG` is generated with the command `changelog debian --vars='{\"name\":\"dummy\"}'`.
+Tokens you can find in the `json` are documented [here](https://github.com/mh-cbon/go-bin-deb#json-tokens)
 
-find more information [here](https://github.com/mh-cbon/go-bin-deb#json-file)
+Detailed documentation is available at [here](https://github.com/mh-cbon/go-bin-deb#json-file)
 
-Next step is to create a `.travis.yml` file to build the packages then upload the assets to our github release,
+#### Using travis
+
+Create a `.travis.yml` file.
+It will contains the instructions to
+- build the `debian` package
+- upload the artifacts to a `github release`
+- upload the artifacts to a `bintray`
 
 ```sh
 $ cat <<EOT > .travis.yml
@@ -675,115 +860,56 @@ $ cat <<EOT > .travis.yml
   go:
   - tip
   env:
+    matrix:
+    - OKARCH=amd64 OSARCH=amd64
+    - OKARCH=386 OSARCH=i386
     global:
-    - MYAPP=dummy
+    - VERSION=${TRAVIS_TAG}
+    - GH_USER=${TRAVIS_REPO_SLUG%/*}
+    - GH_APP=${TRAVIS_REPO_SLUG#*/}
+    - JFROG_CLI_OFFER_CONFIG=false
+    - secure: yyyy
   before_install:
+  - sudo add-apt-repository 'deb https://dl.bintray.com/mh-cbon/deb unstable main'
   - sudo apt-get -qq update
+  - sudo apt-get install --allow-unauthenticated changelog go-bin-deb fakeroot
   - mkdir -p ${GOPATH}/bin
+  - cd ~
+  - curl https://glide.sh/get | sh
   install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - glide install
   - go install
-  script: go run main.go
+  script:
+  - go run main.go
+  - go test
   before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh
-    | GH=mh-cbon/$MYAPP sh -xe
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - mkdir -p build/$OSARCH
+  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP
+    main.go
+  - go-bin-deb generate --file deb.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.deb
+  - curl -fL https://getcli.jfrog.io | sh
+  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/deb
+    $GH_USER/deb/$GH_APP || echo "package already exists"
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH
+    $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/g/$GH_APP/
   deploy:
     provider: releases
     api_key:
       secure: xxxxxxx
     file_glob: true
     file:
-    - $MYAPP-386.deb
-    - $MYAPP-amd64.deb
+    - $GH_APP-$OKARCH.deb
     skip_cleanup: true
     true:
       tags: true
 EOT
 ```
 
-Generate a secure key, so travis can upload asset to your github repository,
-
-```sh
-$ travis setup releases
-```
-
-The step-by-step explanations of this `.travis.yml` file,
-
-```yaml
-  language: go
-  go:
-  - tip
-```
-
-Install latest go version. it s a simple matrix.
-
-```yaml
-  env:
-    global:
-    - MYAPP=dummy
-```
-
-Setup env variable available in the rest of the file.
-
-```yaml
-  before_install:
-  - sudo apt-get -qq update
-  - mkdir -p ${GOPATH}/bin
-```
-
-Update the system, make a clean go setup.
-
-```yaml
-  install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
-  - go install
-  script: go run main.go
-```
-
-Install your software, make sure it works.
-
-```yaml
-  before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh
-    | GH=mh-cbon/$MYAPP sh -xe
-```
-
-- Generate the files to include into the packages,
-this is required step to handle by hands depending
-on your requirements. Each desired architecture is built into it s own build folder `build/!arch!/`
-- Produce debian packages into the build area `pkg-build/!arch!`,
-and output the file to the travis build directory.
-- A debian package will be produced for each architecture of {386,amd64}
-
-Version information is taken out of the tag name.
-
-```yaml
-  deploy:
-    provider: releases
-    api_key:
-      secure: xxxxxxx
-    file_glob: true
-    file:
-    - $MYAPP-386.deb
-    - $MYAPP-amd64.deb
-    skip_cleanup: true
-    true:
-      tags: true
-```
-
-This section tells travis system to upload assets listed `file`,
-because of `file_glob: true` expand file names,
-to a github release and to do that only `on: tags: true`
-
 Thats it!
 
-Let s now roll out a new version to trigger travis build
+To trigger a travis build that generates the packages, make a new version.
 
 ```sh
 $ git add deb.json .travis.yml
@@ -792,32 +918,8 @@ $ git commit -m "packaging: add debian package support"
 $ changelog prepare
 changelog file updated
 
-$ cat change.log
-UNRELEASED
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
-
-<go on and edit the change.log to make it useful>
+$ changelog show
+<check then improve the change list>
 
 $ gump patch
 .. commands output
@@ -826,13 +928,15 @@ Created new tag 0.0.3
 ```
 
 Within minutes `travis` will create the packages and put them into the
-[github release page](https://github.com/mh-cbon/dummy/releases)
+[github release page](https://help.github.com/articles/creating-releases/)
 
-## packaging for rpm
+### RPM
 
 [rpm](http://www.rpm.org/)
 
->  The RPM Package Manager (RPM) is a powerful command line driven package management system capable of installing, uninstalling, verifying, querying, and updating computer software packages. Each software package consists of an archive of files along with information about the package like its version, a description, and the like. There is also a library API, permitting advanced developers to manage such transactions from programming languages such as C or Python.
+>  The RPM Package Manager (RPM) is a powerful command line driven package management system capable of installing, uninstalling, verifying, querying, and updating computer software packages.
+> Each software package consists of an archive of files along with information about the package like its version, a description, and the like.
+> There is also a library API, permitting advanced developers to manage such transactions from programming languages such as C or Python.
 
 Much like `go-bin-deb` [go-bin-rpm](https://github.com/mh-cbon/go-bin-rpm) will
 help to generate a package for rpm based systems.
@@ -840,13 +944,7 @@ help to generate a package for rpm based systems.
 
 #### In practice
 
-First things first, you need a red-hat system to properly and securely package rpm software.
-
-While you could use a [vagrant](https://www.vagrantup.com/) box,
-a [docker](https://www.docker.com) image,
-this HOWTO suggest to use a docker image over [travis](http://travis-ci.org/)
-
-create an `rpm.json` file to describe the package content
+Create an `rpm.json` file to describe the package content
 
 ```sh
 $ cat <<EOT > rpm.json
@@ -869,7 +967,14 @@ $ cat <<EOT > rpm.json
 EOT
 ```
 
-Next step is to update the `.travis.yml` file to generate rpm packages,
+- create an `rpm` package with the name `dummy`
+- the license is `MIT` its content is available in the file `LICENSE`
+- there is only one file located at `build/!arch!/dummy` to copy to [%{_bindir}](https://fedoraproject.org/wiki/Packaging:RPMMacros?rd=Packaging/RPMMacros#Valid_RPM_Macros) from the base path `build/!arch!/` (it will create the file `/usr/bin/dummy`)
+- the change list is generated with the command `changelog rpm`
+
+#### Using travis
+
+Update the `.travis.yml` file to generate `rpm` packages,
 
 ```sh
 $ cat <<EOT > .travis.yml
@@ -880,83 +985,57 @@ $ cat <<EOT > .travis.yml
   go:
   - tip
   env:
+    matrix:
+    - OKARCH=amd64 OSARCH=amd64
+    - OKARCH=386 OSARCH=i386
     global:
-    - MYAPP=gh-api-cli
+    - VERSION=${TRAVIS_TAG}
+    - GH_USER=${TRAVIS_REPO_SLUG%/*}
+    - GH_APP=${TRAVIS_REPO_SLUG#*/}
+    - JFROG_CLI_OFFER_CONFIG=false
+    - secure: yyyy
   before_install:
   - sudo apt-get -qq update
+  - mkdir -p ${GOPATH}/bin
+  - cd ~
+  - curl https://glide.sh/get | sh
   install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - glide install
   - go install
-  script: go run main.go
+  script:
+  - go run main.go
+  - go test
   before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/$MYAPP
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - mkdir -p build/$OSARCH
+  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP
     main.go
-  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/$MYAPP
-    main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh
-    | GH=mh-cbon/$MYAPP sh -xe
+  - docker pull fedora
+  - |
+    docker run -v $PWD:/mnt/travis fedora /bin/sh -c "cd /mnt/travis && \ (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo) && \
+     dnf install go-bin-rpm changelog rpm-build -y --quiet && \
+     go-bin-rpm generate --file rpm.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.rpm"
+  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/rpm
+    $GH_USER/rpm/$GH_APP || echo "package already exists"
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH
+    $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/g/$GH_APP/
   deploy:
     provider: releases
     api_key:
       secure: xxxx
     file_glob: true
     file:
-    - $MYAPP-386.rpm
-    - $MYAPP-amd64.rpm
+    - $GH_APP-$OKARCH.rpm
     skip_cleanup: true
     true:
       tags: true
 EOT
 ```
 
-The step-by-step explanations of the changes applied to `.travis.yml` file,
-
-```yaml
-  sudo: required
-  services:
-  - docker
-```
-
-This enables `docker` on travis. It requires `sudo`.
-
-```yaml
-  before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/$MYAPP
-    main.go
-  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/$MYAPP
-    main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh
-    | GH=mh-cbon/$MYAPP sh -xe
-```
-
-Produce rpm packages into the build area `pkg-build/!arch!`,
-and output the file to the travis build directory.
-
-An rpm package will be produced for each architecture of {386,amd64}
-
-Version information is taken out of the tag name.
-
-```yaml
-  deploy:
-    provider: releases
-    api_key:
-      secure: xxxx
-    file_glob: true
-    file:
-    - $MYAPP-386.rpm
-    - $MYAPP-amd64.rpm
-    skip_cleanup: true
-    true:
-      tags: true
-```
-
-Update `file` list of `deploy` section to include the new rpm packages.
-
 Thats it!
 
-Let s now roll out a new version to trigger travis build
+To trigger a travis build that generates the packages, make a new version.
 
 ```sh
 $ git add rpm.json docker.sh
@@ -965,40 +1044,8 @@ $ git commit -m "packaging: add rpm package support"
 $ changelog prepare
 changelog file updated
 
-$ cat change.log
-UNRELEASED
-
-  * packaging: add rpm package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.3
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
-
-<go on and edit the change.log to make it useful>
+$ changelog show
+<check then improve the change list>
 
 $ gump patch
 .. commands output
@@ -1006,41 +1053,26 @@ Created new tag 0.0.4
 .. commands output
 ```
 
-Within minutes `travis` will create the packages
-and put all rpm and debian packages into the
-[github release page](https://github.com/mh-cbon/dummy/releases)
+Within minutes `travis` will create the packages and put them into the
+[github release page](https://help.github.com/articles/creating-releases/)
 
 
-## packaging for windows
+### windows
 
 [wikipedia](https://en.wikipedia.org/wiki/WiX)
 
-> The Windows Installer XML Toolset (WiX, pronounced "wicks"), is a free software toolset that builds Windows Installer packages from XML code. It consists of a command-line environment that developers may integrate into their build processes to build MSI and MSM packages.
+> The Windows Installer XML Toolset (WiX, pronounced "wicks"), is a free software toolset that builds Windows Installer packages from XML code.
+> It consists of a command-line environment that developers may integrate into their build processes to build MSI and MSM packages.
 
 [wix documentation](http://wixtoolset.org/documentation/manual/v3/)
 
-If building rpm or debian package is not an easy task, building windows installer is even more difficult.
+In the same spirit as `go-bin-deb` and `go-bin-rpm`, [go-msi](https://github.com/mh-cbon/go-msi) will help you to produce `msi` package and `nuget` packages.
 
-It uses a lots of XML tightly linked to windows api, installers are by nature way more complex than previous packages, it is all closed source with fewer documentation.
-
-Nevertheless, like `go-bin-deb` or `go-bin-rpm`, a solution exist [go-msi](https://github.com/mh-cbon/go-msi).
+`nuget` packages are useful to integrate with [chocolatey](https://chocolatey.org/)
 
 #### In practice
 
-First things first, you need a windows system to create windows installer. the procedure relies on [wix](http://wixtoolset.org/) a software distributed only on windows compatible platform.
-
-While you could use a [vagrant](https://www.vagrantup.com/) box,
-(soon) a [docker](https://www.docker.com) image,
-this HOWTO suggest to use [appveyor](https://www.appveyor.com/)
-
-Once again, browse to appveyor, connect your github account, and enable your repos
-
-```sh
-xdg-open https://ci.appveyor.com/
-xdg-open https://ci.appveyor.com/projects/new
-```
-
-create an `wix.json` file to describe the package content
+Create a file `wix.json` to describe the package content
 
 ```sh
 $ cat <<EOT > wix.json
@@ -1072,179 +1104,125 @@ $ cat <<EOT > wix.json
 EOT
 ```
 
-Then setup guids with help of `go-msi`
+- create an `msi` installer containing `dummy.exe`
+- copy the file at ~~ `C:\program files\dummy`
+- add `C:\program files\dummy` to the `PATH`
+
+Then setup `GUIDs` value within the `wix.json` file with the help of `go-msi`, run
 
 ```sh
 $ go-msi set-guid
 file updated
 ```
 
-Short story,
+__notes__: guid s should be set once at beginning and not updated later.
 
-create an installer made of `dummy.exe` file,
-place it into ~~ `C:\program files\dummy`,
-add this path to user environment `PATH` variable.
+#### Using appveyor
 
 To perform the build of the package, create an `appveyor.yml` file.
 
 ```sh
 $ cat <<EOT > appveyor.yml
-version: "{build}"
-os: Windows Server 2012 R2
-clone_folder: c:\gopath\src\github.com\USER\dummy
+image: Visual Studio 2017
+clone_folder: c:\gopath\src\github.com\%APPVEYOR_REPO_NAME%
+
+# set to false to build on any commit.
 skip_non_tags: true
 
 environment:
+  # improve readability
+  VCS_URL: https://github.com/%APPVEYOR_REPO_NAME%
+  GH_APP: %APPVEYOR_PROJECT_NAME%
+  GH_USER: %APPVEYOR_ACCOUNT_NAME%
+  VERSION: %APPVEYOR_REPO_TAG_NAME%
+  # specific to go
   GOPATH: c:\gopath
-  GO15VENDOREXPERIMENT: 1
+  # specific to bintray
+  JFROG_CLI_OFFER_CONFIG: false
+  #  define secure tokens
+  CHOCOKEY:
+    secure: xxx
+  BT_KEY:
+    secure: yyy
+  GH_TOKEN:
+    secure: zzz
 
+# prepare system and project
 install:
-  - curl -fsSL -o C:\wix310-binaries.zip http://static.wixtoolset.org/releases/v3.10.3.3007/wix310-binaries.zip
-  - 7z x C:\wix310-binaries.zip -y -r -oC:\wix310
-  - set PATH=C:\wix310;%PATH%
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
-  - cmd /C C:\latest.bat mh-cbon go-msi amd64
-  - set PATH=C:\Program Files\go-msi\;%PATH%
+  # install required software
+  - choco source add -n=mh-cbon -s="https://api.bintray.com/nuget/mh-cbon/choco"
+  - choco install changelog gh-api-cli go-msi -y
+  - refreshenv
+  # to test the build on non tag commits.
+  - if "%x%"=="%VERSION%" set VERSION=1.0.2
+  # ensure wix is available in PATH
+  - set PATH=%WIX%\bin;%PATH%
+  # fetch bintray client
+  - curl -fsSk -o jfrog.exe -L "https://api.bintray.com/content/jfrog/jfrog-cli-go/$latest/jfrog-cli-windows-amd64/jfrog.exe?bt_package=jfrog-cli-windows-amd64"
+  # specific to go
+  - set PATH=%GOPATH%\bin;%PATH%
+  - go get -u github.com/mh-cbon/never-fail
+  - go get -u github.com/Masterminds/glide
+  - glide install
 
+test_script:
+  - go test
+  - go run main.go
+
+# build msi artifacts
 build_script:
-  - set MYAPP=dummy
+  # build the program for x386 arch
   - set GOARCH=386
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
+  - go build -o %GH_APP%.exe --ldflags "-X main.VERSION=%VERSION%" main.go
+  # generate the x386 MSI package
+  - go-msi make --msi %GH_APP%-%GOARCH%-%VERSION%.msi --version %VERSION% --arch %GOARCH%
+  # build a cross platform x386 nuget package.
+  - go-msi choco --path wix.json --version %VERSION% --input %GH_APP%-%GOARCH%-%VERSION%.msi --changelog-cmd "changelog ghrelease --version %VERSION%"
+  # build the program for amd64 arch
   - set GOARCH=amd64
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME% --arch %GOARCH%
+  - go build -o %GH_APP%.exe --ldflags "-X main.VERSION=%VERSION%" main.go
+  # generate the amd64 MSI package
+  - go-msi make --msi %GH_APP%-%GOARCH%-%VERSION%.msi --version %VERSION% --arch %GOARCH%
 
-test: off
-
+# configure the artifacts to upload to the github releae page
 artifacts:
   - path: '*-386.msi'
     name: msi-x86
   - path: '*-amd64.msi'
     name: msi-x64
 
+# setup the github release page upload
 deploy:
   - provider: GitHub
     artifact: msi-x86, msi-x64
+    force_update: false
     draft: false
     prerelease: false
     description: "Release %APPVEYOR_REPO_TAG_NAME%"
     auth_token:
       secure: xxxx
     on:
-      branch:
-        - master
-        - /v\d\.\d\.\d/
-        - /\d\.\d\.\d/
       appveyor_repo_tag: true
+
+# deploy the nuget/msi packages to bintray
+deploy_script:
+  # setup both "choco" and "msi" repositories on bintray
+  - never-fail jfrog bt pc --user %GH_USER% --key %BT_KEY% --licenses=MIT --vcs-url=https://github.com/%APPVEYOR_REPO_NAME% %GH_USER%/msi/%GH_APP%
+  - never-fail jfrog bt pc --user %GH_USER% --key %BT_KEY% --licenses=MIT --vcs-url=https://github.com/%APPVEYOR_REPO_NAME% %GH_USER%/choco/%GH_APP%
+  # upload the nupkg
+  - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%.%VERSION%.nupkg %GH_USER%/choco/%GH_APP%/%VERSION%
+  # upload the x386 msi artifact
+  - set GOARCH=386
+  - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%-%GOARCH%-%VERSION%.msi %GH_USER%/msi/%GH_APP%/%VERSION%
+  # upload the amd64 msi artifact
+  - set GOARCH=amd64
+  - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%-%GOARCH%-%VERSION%.msi %GH_USER%/msi/%GH_APP%/%VERSION%
 EOT
 ```
 
-Go to your github account, and generate a new `personal access token` to read/write `repo`
-
-```sh
-xdg-open https://github.com/settings/tokens
-```
-
-Generate a secure deploy key for appveyor with the new github token value,
-
-```sh
-xdg-open https://ci.appveyor.com/tools/encrypt
-```
-
-Set the secure key into the `appveyor.yml` file.
-
-
-The step-by-step explanations of this `appveyor.yml` file,
-
-```yaml
-  version: '{build}'
-  os: Windows Server 2012 R2
-  clone_folder: c:\gopath\src\github.com\USER\dummy
-  skip_non_tags: true
-```
-
-Defines the windows version to run, it does not matter much.
-sets the clone path, tells appveyor to skip non tag commits
-as this is a build only `appveyor.yml` file.
-
-```yaml
-  environment:
-    GOPATH: c:\gopath
-    GO15VENDOREXPERIMENT: 1
-```
-
-Set some required ENV for the go setup.
-
-```yaml
-  install:
-  - curl -fsSL -o C:\wix310-binaries.zip http://static.wixtoolset.org/releases/v3.10.3.3007/wix310-binaries.zip
-  - 7z x C:\wix310-binaries.zip -y -r -oC:\wix310
-  - set PATH=C:\wix310;%PATH%
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-  - curl -fsSL -o C:\latest.bat https://raw.githubusercontent.com/mh-cbon/latest/master/latest.bat
-  - cmd /C C:\latest.bat mh-cbon go-msi amd64
-  - set PATH=C:\Program Files\go-msi\;%PATH%
-```
-
-Install wix binaries, register their path to PATH
-
-Install `go-msi` on the machine, registers its path to PATH.
-
-```yaml
-  build_script:
-  - set MYAPP=dummy
-  - set GOARCH=386
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME%
-    --arch %GOARCH%
-  - set GOARCH=amd64
-  - go build -o %MYAPP%.exe --ldflags "-X main.VERSION=%APPVEYOR_REPO_TAG_NAME%" main.go
-  - go-msi.exe make --msi %APPVEYOR_BUILD_FOLDER%\%MYAPP%-%GOARCH%.msi --version %APPVEYOR_REPO_TAG_NAME%
-    --arch %GOARCH%
-```
-
-Create binaries for each architecture and create the windows installer.
-Save resulting file into `APPVEYOR_BUILD_FOLDER` to be able to upload them afterward.
-
-```yaml
-  artifacts:
-  - path: '*-386.msi'
-    name: msi-x86
-  - path: '*-amd64.msi'
-    name: msi-x64
-```
-
-Define a bunch of assets (name <> path).
-Where path is always relative to `APPVEYOR_BUILD_FOLDER`
-
-```yaml
-  deploy:
-  - provider: GitHub
-    artifact: msi-x86, msi-x64
-    draft: false
-    prerelease: false
-    description: Release %APPVEYOR_REPO_TAG_NAME%
-    auth_token:
-      secure: xxxx
-    true:
-      branch:
-      - master
-      - /v\d\.\d\.\d/
-      - /\d\.\d\.\d/
-      appveyor_repo_tag: true
-```
-
-Tells `appveyor` to take `msi-x86`, `msi-x64` artifacts and upload them to the github release page.
-
-If a release does not exists, create it.
-
-Do it only for tag commits, on branch looking like a semver commit (this is tricky may need refinements).
-
 Thats it!
 
-Let s now roll out a new version to trigger appveyor build
+To trigger an appveyor build that generates the packages, make a new version.
 
 ```sh
 $ git add wix.json appveyor.yml
@@ -1253,48 +1231,8 @@ $ git commit -m "packaging: add msi package support"
 $ changelog prepare
 changelog file updated
 
-$ cat change.log
-UNRELEASED
-
-  * packaging: add msi package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.4
-
-  * packaging: add rpm package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.3
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
-
-<go on and edit the change.log to make it useful>
+$ changelog show
+<check then improve the change list>
 
 $ gump patch
 .. commands output
@@ -1304,158 +1242,65 @@ Created new tag 0.0.5
 
 Within minutes both `appveyor` and `travis` will create the packages
 and put all of them into the
-[github release page](https://github.com/mh-cbon/dummy/releases)
+[github release page](https://help.github.com/articles/creating-releases/)
 
-# distributing app
+### github release page
 
-To distribute your application several cases and ways are possible.
+Sometimes you want to distribute only build artifacts and not the whole packages and repostiory.
 
-#### Windows
+$ .version.sh
+```sh
+POSTVERSION=
+  # clean up
+  666 rm-glob -r build/
+  666 rm-glob -r assets/
+  # build program for many OS-ARCH
+  666 build-them-all build main.go -o "build/&os-&arch/&pkg" --ldflags "-X main.VERSION=!newversion!"
+  # create a ZIP archive for windows
+  philea -s -S -p "build/windows*/*" "666 archive create -f -o=assets/%dname.zip -C=build/%dname/ ."
+  # create a TGZ archive for !windows
+  philea -s -S -e windows*/** -p "build/*/**" "666 archive create -f -o=assets/%dname.tar.gz -C=build/%dname/ ."
+  # create a github release
+  666 gh-api-cli create-release -n release -o USER -r dummy --ver !newversion! -c "changelog ghrelease --version !newversion!" --draft !isprerelease!
+  # upload assets to the release
+  666 gh-api-cli upload-release-asset -n release --glob "assets/*" -o USER -r dummy --ver !newversion!
+  # clean up
+  666 rm-glob -r build/
+  666 rm-glob -r assets/
+```
 
-On windows, for a regular user, a link to the MSI package
-and the `click-click-click` practice is enough.
+# distribution
 
-#### rpm / debian
+You are all set now!
 
-__One time setup__
+You can now add those instructions to your `README`,
 
-To easily install your package, you can use that snippet in your repo,
+__windows__
 
 ```sh
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=USER/dummy sh -xe
-# or
-wget -q -O - --no-check-certificate \
-https://raw.githubusercontent.com/mh-cbon/latest/master/install.sh \
-| GH=USER/dummy sh -xe
+ - choco source add -n=<USER> -s="https://api.bintray.com/nuget/<USER>/choco"
+ - choco install dummy -y
+ - refreshenv
 ```
 
-Which will detect the running system, detect the last version of the repo `USER/dummy`,
-download a deb or rpm package for the given system,
-and run the appropriate command to install the package.
-
-__setup a regular package source__
-
-For a better integration and ease package update, you can also create
-source package repositories and host them on `gh-pages` branch of your github repository.
-
-Lets update the `.travis.yml` file.
-
-Add a secure environment variable containing the value of a github personal access token,
-
-Create a personal access token on github, save its value to your clipboard,
+__debian__
 
 ```sh
-$ xdg-open https://github.com/settings/tokens
+ - sudo add-apt-repository 'deb https://dl.bintray.com/<USER>/deb unstable main'
+ - sudo apt-get -qq update
+ - sudo apt-get install --allow-unauthenticated -y dummy
 ```
 
-Update `env` section of the `.travis.yml` file, using `travis cli client`, to create a secure variable
+__redhat__
 
 ```sh
-$ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
+- sudo curl -s -L https://bintray.com/<USER>/rpm/rpm > /etc/yum.repos.d/<USER>.repo
+- sudo dnf install go-bin-rpm changelog rpm-build -y
 ```
 
-If you use [gh-api-cli](https://github.com/mh-cbon/gh-api-cli),
+__protip__
 
-```sh
-travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
-```
-
-The env section should now look like this
-
-```yaml
-  env:
-    global:
-    - MYAPP=dummy
-    - secure: xxxxx
-```
-
-Now add a new section `after_deploy`, to generate the repositories into `gh-pages` after the release is updated,
-
-```yaml
-  after_deploy:
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/setup-repository.sh
-    | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/setup-repository.sh
-    | GH=USER/$MYAPP EMAIL=your@email.com sh -xe
-```
-
-Last step, update the `README.md` to add instructions to setup the new source,
-
-```sh
-wget -O - https://raw.githubusercontent.com/mh-cbon/latest/master/source.sh \
-| GH=USER/dummy sh -xe
-# or
-curl -L https://raw.githubusercontent.com/mh-cbon/latest/master/source.sh \
-| GH=USER/dummy sh -xe
-```
-
-Thats it!
-
-Let s now roll out a last version to generates the repositories
-
-```sh
-$ git commit -am "packaging: add deb/rpm source repositories"
-
-$ changelog prepare
-changelog file updated
-
-$ cat change.log
-UNRELEASED
-
-  * packaging: add deb/rpm source repositories
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.5
-
-  * packaging: add msi package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.4
-
-  * packaging: add rpm package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.3
-
-  * packaging: add debian package support
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.2
-
-  * init: release automation
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:42:13 +0200
-
-0.0.1
-
-  * Initial release
-
-  - USER <email>
-
--- USER <email>; Tue, 21 Jun 2016 11:41:13 +0200
-
-<go on and edit the change.log to make it useful>
-
-$ gump major
-.. commands output
-Created new tag 1.0.0
-.. commands output
-```
+`emd` has helpers for that matter, [see here](https://github.com/mh-cbon/emd#std).
 
 # Oops, it failed :s
 
@@ -1482,50 +1327,13 @@ $ git push origin :$VERSION
 $ gh-api-cli rm-release -n <auth name> -o USER -r dummy --ver $VERSION
 # rename last release to UNRELEASED
 $ changelog rename
-# fix to the pipeline
+# apply fixes to the pipeline
 $ gump patch # again
 ```
 
 # Errors reference
 
-Find various errors messages and their quick solution
-
-### GET https://api.github.com/repo...: 401 Bad credentials []
-
-__Reference__
-
-```sh
-$ gh-api-cli rm-assets --guess --ver 1.0.0 -t $GH_TOKEN --glob "*.deb"
-GET https://api.github.com/repos/mh-cbon/go-bin-rpm/releases?page=1&per_page=200: 401 Bad credentials []
-panic: exit status 1
-goroutine 1 [running]:
-...
-> The command "curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=$GH sh -xe" failed and exited with 2 during .
-```
-
-__Reason__
-
-`$GH_TOKEN` passed to `gh-api-cli` is wrong (empty, revocated, not exisitng).
-
-__Solution__
-
-Using `travis` client re generate the `secure environment variable` that you should find into the `.travis.yml` file.
-
-```yml
-env:
-  global:
-    - secure: StXdvc/gCv6u/hIqw0clmV0xsgcjUSMwo.....
-```
-
-__Procedure__
-
-```sh
-$ travis encrypt --add -r USER/dummy GH_TOKEN=<token>
-# or
-$ travis encrypt --add -r USER/dummy GH_TOKEN=`gh-api-cli get-auth -n <auth name>`
-```
-
-see also [gh-api-cli](https://github.com/mh-cbon/gh-api-cli)
+Reports your difficulties to this repository to help to build this index of errors reference.
 
 # The end !!
 

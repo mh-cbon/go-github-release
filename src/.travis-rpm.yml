@@ -1,39 +1,76 @@
+# docker will run a red hat OS
 sudo: required
-
 services:
   - docker
 
+# specific to a go project
 language: go
 go:
   - tip
 
+#
 env:
+  matrix:
+    # OKARCH is go ARCH
+    # OSARCH is the package target arch
+    - OKARCH=amd64 OSARCH=amd64
+    - OKARCH=386 OSARCH=i386
   global:
-    - MYAPP=gh-api-cli
+    # rename some variable for readability
+    - VERSION=${TRAVIS_TAG}
+    - GH_USER=${TRAVIS_REPO_SLUG%/*}
+    - GH_APP=${TRAVIS_REPO_SLUG#*/}
+    # specific to bintray
+    - JFROG_CLI_OFFER_CONFIG=false
+    # bintray encrypted token
+    - secure: yyyy
 
 before_install:
+  # update the system
   - sudo apt-get -qq update
+  # specific to a go project
+  - mkdir -p ${GOPATH}/bin
+  - cd ~
+  - curl https://glide.sh/get | sh
 
 install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
-  - go install
+# specific to a go project
+- cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+- glide install
+- go install
 
-script: go run main.go
+script:
+# specific to a go project
+- go run main.go
+- go test
 
+# create the rpm package
 before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build --ldflags "-X main.VERSION=${TRAVIS_TAG}" -o build/amd64/$MYAPP main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-rpm/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
+  # build the program to build/amd64/dummy
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - mkdir -p build/$OSARCH
+  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP main.go
+  # start docker
+  - docker pull fedora
+  # create the package in the docker
+  - >
+    docker run -v $PWD:/mnt/travis fedora /bin/sh -c
+    "cd /mnt/travis && \
+    (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo) && \
+     dnf install go-bin-rpm changelog rpm-build -y --quiet && \
+     go-bin-rpm generate --file rpm.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.rpm"
+  # upload to bintray
+  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/rpm $GH_USER/rpm/$GH_APP || echo "package already exists"
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/g/$GH_APP/
 
+# upload rpm packages to the github release page
 deploy:
   provider: releases
   api_key:
     secure: xxxx
   file_glob: true
   file:
-    - $MYAPP-386.rpm
-    - $MYAPP-amd64.rpm
+    - $GH_APP-$OKARCH.rpm
   skip_cleanup: true
   on:
     tags: true

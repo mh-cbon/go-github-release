@@ -1,35 +1,70 @@
+# specific to a go project
 language: go
 go:
   - tip
 
+#
 env:
+  matrix:
+    # OKARCH is go ARCH
+    # OSARCH is the package target arch
+    - OKARCH=amd64 OSARCH=amd64
+    - OKARCH=386 OSARCH=i386
   global:
-    - MYAPP=dummy
+    # rename some variable for readability
+    - VERSION=${TRAVIS_TAG}
+    - GH_USER=${TRAVIS_REPO_SLUG%/*}
+    - GH_APP=${TRAVIS_REPO_SLUG#*/}
+    # specific to bintray
+    - JFROG_CLI_OFFER_CONFIG=false
+    # bintray encrypted token
+    - secure: yyyy
+
 
 before_install:
+  # install required software
+  - sudo add-apt-repository 'deb https://dl.bintray.com/mh-cbon/deb unstable main'
   - sudo apt-get -qq update
+  - sudo apt-get install --allow-unauthenticated changelog go-bin-deb fakeroot
+  # specific to a go project
   - mkdir -p ${GOPATH}/bin
+  - cd ~
+  - curl https://glide.sh/get | sh
 
 install:
-  - cd $GOPATH/src/github.com/USER/$MYAPP
+  # specific to a go project
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - glide install
   - go install
 
-script: go run main.go
+script:
+  # specific to a go project
+  - go run main.go
+  - go test
 
+# create the debian package
 before_deploy:
-  - mkdir -p build/{386,amd64}
-  - GOOS=linux GOARCH=386 go build -o build/386/$MYAPP main.go
-  - GOOS=linux GOARCH=amd64 go build -o build/amd64/$MYAPP main.go
-  - curl -L https://raw.githubusercontent.com/mh-cbon/go-bin-deb/master/create-pkg.sh | GH=mh-cbon/$MYAPP sh -xe
+  # build the program to build/amd64/dummy
+  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+  - mkdir -p build/$OSARCH
+  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP main.go
+  # generate teh debian package to ./dummy-amd64-0.0.2.deb
+  - go-bin-deb generate --file deb.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.deb
+  # fetch bintray cli
+  - curl -fL https://getcli.jfrog.io | sh
+  # create a repostiory with the name "deb", ignore error if the repository alreay exists
+  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/deb $GH_USER/deb/$GH_APP || echo "package already exists"
+  # upload the artifact to the "deb" repostiory
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/g/$GH_APP/
 
+# upload debian packages to the github release page
 deploy:
   provider: releases
   api_key:
     secure: xxxxxxx
   file_glob: true
   file:
-    - $MYAPP-386.deb
-    - $MYAPP-amd64.deb
+    - $GH_APP-$OKARCH.deb
   skip_cleanup: true
   on:
     tags: true
