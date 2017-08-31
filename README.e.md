@@ -645,6 +645,7 @@ $ cat <<EOT > deb.json
 EOT
 ```
 
+IE:
 - create a `debian` package with the name `dummy`
 - the license is `MIT` its content is available in the file `LICENSE`
 - there is only one file located at `build/!arch!/dummy` to copy to `/usr/bin`
@@ -662,11 +663,7 @@ It will contains the instructions to
 - upload the artifacts to a `github release`
 - upload the artifacts to a `bintray`
 
-```sh
-$ cat <<EOT > .travis.yml
-{{yaml "src/.travis.yml" | preline "  "}}
-EOT
-```
+{{read "src/.travis.yml" | color "yml"}}
 
 Thats it!
 
@@ -722,11 +719,7 @@ EOT
 
 Update the `.travis.yml` file to generate `rpm` packages,
 
-```sh
-$ cat <<EOT > .travis.yml
-{{yaml "src/.travis-rpm.yml" | preline "  "}}
-EOT
-```
+{{read "src/.travis-rpm.yml" | color "yml"}}
 
 Thats it!
 
@@ -792,11 +785,7 @@ __notes__: guid s should be set once at beginning and not updated later.
 
 To perform the build of the package, create an `appveyor.yml` file.
 
-```sh
-$ cat <<EOT > appveyor.yml
-{{read "src/appveyor.yml"}}
-EOT
-```
+{{read "src/appveyor.yml" | color "yml"}}
 
 Thats it!
 

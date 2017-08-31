@@ -837,6 +837,7 @@ $ cat <<EOT > deb.json
 EOT
 ```
 
+IE:
 - create a `debian` package with the name `dummy`
 - the license is `MIT` its content is available in the file `LICENSE`
 - there is only one file located at `build/!arch!/dummy` to copy to `/usr/bin`
@@ -854,57 +855,77 @@ It will contains the instructions to
 - upload the artifacts to a `github release`
 - upload the artifacts to a `bintray`
 
-```sh
-$ cat <<EOT > .travis.yml
-  language: go
-  go:
+```yml
+# specific to a go project
+language: go
+go:
   - tip
-  env:
-    matrix:
+
+#
+env:
+  matrix:
+    # OKARCH is go ARCH
+    # OSARCH is the package target arch
     - OKARCH=amd64 OSARCH=amd64
     - OKARCH=386 OSARCH=i386
-    global:
+  global:
+    # rename some variable for readability
     - VERSION=${TRAVIS_TAG}
     - GH_USER=${TRAVIS_REPO_SLUG%/*}
     - GH_APP=${TRAVIS_REPO_SLUG#*/}
+    # specific to bintray
     - JFROG_CLI_OFFER_CONFIG=false
+    # bintray encrypted token
     - secure: yyyy
-  before_install:
+
+
+before_install:
+  # install required software
   - sudo add-apt-repository 'deb https://dl.bintray.com/mh-cbon/deb unstable main'
   - sudo apt-get -qq update
   - sudo apt-get install --allow-unauthenticated changelog go-bin-deb fakeroot
+  # specific to a go project
   - mkdir -p ${GOPATH}/bin
   - cd ~
   - curl https://glide.sh/get | sh
-  install:
+
+install:
+  # specific to a go project
   - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
   - glide install
   - go install
-  script:
+
+script:
+  # specific to a go project
   - go run main.go
   - go test
-  before_deploy:
+
+# create the debian package
+before_deploy:
+  # build the program to build/amd64/dummy
   - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
   - mkdir -p build/$OSARCH
-  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP
-    main.go
+  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP main.go
+  # generate teh debian package to ./dummy-amd64-0.0.2.deb
   - go-bin-deb generate --file deb.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.deb
+  # fetch bintray cli
   - curl -fL https://getcli.jfrog.io | sh
-  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/deb
-    $GH_USER/deb/$GH_APP || echo "package already exists"
-  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH
-    $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/g/$GH_APP/
-  deploy:
-    provider: releases
-    api_key:
-      secure: xxxxxxx
-    file_glob: true
-    file:
+  # create a repostiory with the name "deb", ignore error if the repository alreay exists
+  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/deb $GH_USER/deb/$GH_APP || echo "package already exists"
+  # upload the artifact to the "deb" repostiory
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/g/$GH_APP/
+
+# upload debian packages to the github release page
+deploy:
+  provider: releases
+  api_key:
+    secure: xxxxxxx
+  file_glob: true
+  file:
     - $GH_APP-$OKARCH.deb
-    skip_cleanup: true
-    true:
-      tags: true
-EOT
+  skip_cleanup: true
+  on:
+    tags: true
 ```
 
 Thats it!
@@ -976,61 +997,83 @@ EOT
 
 Update the `.travis.yml` file to generate `rpm` packages,
 
-```sh
-$ cat <<EOT > .travis.yml
-  sudo: required
-  services:
+```yml
+# docker will run a red hat OS
+sudo: required
+services:
   - docker
-  language: go
-  go:
+
+# specific to a go project
+language: go
+go:
   - tip
-  env:
-    matrix:
+
+#
+env:
+  matrix:
+    # OKARCH is go ARCH
+    # OSARCH is the package target arch
     - OKARCH=amd64 OSARCH=amd64
     - OKARCH=386 OSARCH=i386
-    global:
+  global:
+    # rename some variable for readability
     - VERSION=${TRAVIS_TAG}
     - GH_USER=${TRAVIS_REPO_SLUG%/*}
     - GH_APP=${TRAVIS_REPO_SLUG#*/}
+    # specific to bintray
     - JFROG_CLI_OFFER_CONFIG=false
+    # bintray encrypted token
     - secure: yyyy
-  before_install:
+
+before_install:
+  # update the system
   - sudo apt-get -qq update
+  # specific to a go project
   - mkdir -p ${GOPATH}/bin
   - cd ~
   - curl https://glide.sh/get | sh
-  install:
-  - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
-  - glide install
-  - go install
-  script:
-  - go run main.go
-  - go test
-  before_deploy:
+
+install:
+# specific to a go project
+- cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
+- glide install
+- go install
+
+script:
+# specific to a go project
+- go run main.go
+- go test
+
+# create the rpm package
+before_deploy:
+  # build the program to build/amd64/dummy
   - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
   - mkdir -p build/$OSARCH
-  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP
-    main.go
+  - GOOS=linux go build --ldflags "-X main.VERSION=$VERSION" -o build/$OSARCH/$GH_APP main.go
+  # start docker
   - docker pull fedora
-  - |
-    docker run -v $PWD:/mnt/travis fedora /bin/sh -c "cd /mnt/travis && \ (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo) && \
+  # create the package in the docker
+  - >
+    docker run -v $PWD:/mnt/travis fedora /bin/sh -c
+    "cd /mnt/travis && \
+    (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo) && \
      dnf install go-bin-rpm changelog rpm-build -y --quiet && \
      go-bin-rpm generate --file rpm.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.rpm"
-  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/rpm
-    $GH_USER/rpm/$GH_APP || echo "package already exists"
-  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH
-    $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/g/$GH_APP/
-  deploy:
-    provider: releases
-    api_key:
-      secure: xxxx
-    file_glob: true
-    file:
+  # upload to bintray
+  - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/rpm $GH_USER/rpm/$GH_APP || echo "package already exists"
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/g/$GH_APP/
+
+# upload rpm packages to the github release page
+deploy:
+  provider: releases
+  api_key:
+    secure: xxxx
+  file_glob: true
+  file:
     - $GH_APP-$OKARCH.rpm
-    skip_cleanup: true
-    true:
-      tags: true
-EOT
+  skip_cleanup: true
+  on:
+    tags: true
 ```
 
 Thats it!
@@ -1121,8 +1164,7 @@ __notes__: guid s should be set once at beginning and not updated later.
 
 To perform the build of the package, create an `appveyor.yml` file.
 
-```sh
-$ cat <<EOT > appveyor.yml
+```yml
 image: Visual Studio 2017
 clone_folder: c:\gopath\src\github.com\%APPVEYOR_REPO_NAME%
 
@@ -1217,7 +1259,6 @@ deploy_script:
   # upload the amd64 msi artifact
   - set GOARCH=amd64
   - jfrog bt upload --user %GH_USER% --key %BT_KEY%  --override=true --publish=true %GH_APP%-%GOARCH%-%VERSION%.msi %GH_USER%/msi/%GH_APP%/%VERSION%
-EOT
 ```
 
 Thats it!
