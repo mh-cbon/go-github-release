@@ -614,7 +614,7 @@ $ git tag
 It worth to note that the syntax is cross-platform,
 [stackoverflow](http://stackoverflow.com/a/8055430/4466350).
 
-[gump](https://github.com/mh-cbon/gump) takes care to handle '\' EOL appropriately.
+[gump](https://github.com/mh-cbon/gump) takes care to handle '\\' EOL appropriately.
 
 -  Before bumping anything, it is absolutely necessary to sync the local with your remote.
 
