@@ -913,13 +913,13 @@ before_deploy:
   - go-bin-deb generate --file deb.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.deb
   # fetch bintray cli
   - curl -fL https://getcli.jfrog.io | sh
-  # create a repostiory with the name "deb", ignore error if the repository alreay exists
+  # create a package of your app, ignore error if the package alreay exists
   - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/deb $GH_USER/deb/$GH_APP || echo "package already exists"
   # upload the artifact to the "deb" repostiory
   - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/$POOL/$GH_APP/
   # generate the repo metadata
   - curl -X POST -u ${GH_USER}:${BTKEY} https://api.bintray.com/calc_metadata/${GH_USER}/deb
-  
+
 # upload debian packages to the github release page
 deploy:
   provider: releases
@@ -1065,8 +1065,9 @@ before_deploy:
     (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo) && \
      dnf install go-bin-rpm changelog rpm-build -y --quiet && \
      go-bin-rpm generate --file rpm.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.rpm"
-  # upload to bintray
+  # create a package of your app, ignore error if the package alreay exists
   - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/rpm $GH_USER/rpm/$GH_APP || echo "package already exists"
+  # upload to bintray
   - ./jfrog bt upload --override=true --key $BTKEY --publish=true $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/$POOL/$GH_APP/
   # generate the repo metadata
   - curl -X POST -u ${GH_USER}:${BTKEY} https://api.bintray.com/calc_metadata/${GH_USER}/rpm
