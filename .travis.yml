@@ -1,0 +1,25 @@
+sudo: required
+
+services:
+  - docker
+
+language: go
+
+before_install:
+  - sudo add-apt-repository 'deb https://dl.bintray.com/mh-cbon/deb unstable main'
+  - sudo apt-get -qq update
+  - sudo apt-get install --allow-unauthenticated changelog go-bin-deb emd gh-api-cli go-msi gump
+  - docker pull fedora
+
+script:
+  - changelog -v
+  - go-bin-deb -v
+  - emd -v
+  - gh-api-cli -v
+  - go-msi -v
+  - gump -v
+  - >
+    docker run -v $PWD:/mnt/travis fedora /bin/sh -c
+    "cd /mnt/travis && (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo)\
+     && dnf install go-bin-rpm changelog emd gh-api-cli go-msi gump -y\
+     changelog -v && go-bin-deb -v && emd -v && gh-api-cli -v && go-msi -v && gump -v"

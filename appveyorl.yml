@@ -1,0 +1,15 @@
+image: Visual Studio 2017
+clone_folder: c:\gopath\src\github.com\%APPVEYOR_REPO_NAME%
+
+install:
+  - choco source add -n=mh-cbon -s="https://api.bintray.com/nuget/mh-cbon/choco"
+  - choco install changelog gh-api-cli emd go-msi gump -y
+  - refreshenv
+  - changelog -v
+  - gh-api-cli -v
+  - emd -v
+  - go-msi -v
+  - gump -v
+
+build: off
+test: off
