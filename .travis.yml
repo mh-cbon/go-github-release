@@ -22,4 +22,4 @@ script:
     docker run -v $PWD:/mnt/travis fedora /bin/sh -c
     "cd /mnt/travis && (curl -s -L https://bintray.com/mh-cbon/rpm/rpm > /etc/yum.repos.d/w.repo)\
      && dnf install go-bin-rpm changelog emd gh-api-cli go-msi gump -y\
-     changelog -v && go-bin-deb -v && emd -v && gh-api-cli -v && go-msi -v && gump -v"
+     changelog -v && go-bin-rpm -v && emd -v && gh-api-cli -v && go-msi -v && gump -v"
