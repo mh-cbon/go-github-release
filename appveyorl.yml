@@ -5,6 +5,8 @@ install:
   - choco source add -n=mh-cbon -s="https://api.bintray.com/nuget/mh-cbon/choco"
   - choco install changelog gh-api-cli emd go-msi gump -y
   - refreshenv
+
+script:
   - changelog -v
   - gh-api-cli -v
   - emd -v
