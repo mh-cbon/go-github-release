@@ -17,4 +17,3 @@ build_script:
   - gump -v
 
 test: off
-build: off
