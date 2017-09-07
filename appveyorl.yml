@@ -6,6 +6,9 @@ install:
   - choco install changelog gh-api-cli emd go-msi gump -y
   - refreshenv
 
+environment:
+  GOPATH: c:\gopath
+
 build_script:
   - changelog -v
   - gh-api-cli -v
@@ -14,3 +17,4 @@ build_script:
   - gump -v
 
 test: off
+build: off
