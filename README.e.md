@@ -1,3 +1,5 @@
+{{template "badge/travis" .}}{{template "badge/appveyor" .}}
+
 # go-github-release
 
 HOWTO implement a feature complete release software flow over github.
