@@ -6,12 +6,11 @@ install:
   - choco install changelog gh-api-cli emd go-msi gump -y
   - refreshenv
 
-script:
+build_script:
   - changelog -v
   - gh-api-cli -v
   - emd -version
   - go-msi -v
   - gump -v
 
-build: off
 test: off
