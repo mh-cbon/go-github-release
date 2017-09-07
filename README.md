@@ -5,7 +5,7 @@ HOWTO implement a feature complete release software flow over github.
 Aka, s/a software factory/[ma petite entreprise](https://youtu.be/tgOujR6_3Vc?t=37s)/.
 
 Made with the power of `go`,
-built by unix philsophy,
+built with [unix philsophy](https://en.wikipedia.org/wiki/Unix_philosophy),
 it provides concerns-centric lightweight tools
 that can benefit to any project of any language,
 [Issue #15](https://github.com/mh-cbon/go-github-release/issues/15)
@@ -904,6 +904,7 @@ script:
 
 # create the debian package
 before_deploy:
+  - POOL=`echo ${GH_APP} | cut -c 1`
   # build the program to build/amd64/dummy
   - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
   - mkdir -p build/$OSARCH
@@ -915,8 +916,10 @@ before_deploy:
   # create a repostiory with the name "deb", ignore error if the repository alreay exists
   - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/deb $GH_USER/deb/$GH_APP || echo "package already exists"
   # upload the artifact to the "deb" repostiory
-  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/g/$GH_APP/
-
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.deb $GH_USER/deb/$GH_APP/$VERSION pool/$POOL/$GH_APP/
+  # generate the repo metadata
+  - curl -X POST -u ${GH_USER}:${BTKEY} https://api.bintray.com/calc_metadata/${GH_USER}/deb
+  
 # upload debian packages to the github release page
 deploy:
   provider: releases
@@ -1048,6 +1051,7 @@ script:
 
 # create the rpm package
 before_deploy:
+  - POOL=`echo ${GH_APP} | cut -c 1`
   # build the program to build/amd64/dummy
   - cd $GOPATH/src/github.com/$TRAVIS_REPO_SLUG
   - mkdir -p build/$OSARCH
@@ -1063,7 +1067,9 @@ before_deploy:
      go-bin-rpm generate --file rpm.json -a $OSARCH --version $VERSION -o $GH_APP-$OSARCH-$VERSION.rpm"
   # upload to bintray
   - ./jfrog bt pc --key=$BTKEY --user=$GH_USER --licenses=MIT --vcs-url=https://github.com/$GH_USER/rpm $GH_USER/rpm/$GH_APP || echo "package already exists"
-  - ./jfrog bt upload --override=true --key $BTKEY --publish=true --deb=unstable/main/$OSARCH $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/g/$GH_APP/
+  - ./jfrog bt upload --override=true --key $BTKEY --publish=true $GH_APP-$OSARCH-$VERSION.rpm $GH_USER/rpm/$GH_APP/$VERSION pool/$POOL/$GH_APP/
+  # generate the repo metadata
+  - curl -X POST -u ${GH_USER}:${BTKEY} https://api.bintray.com/calc_metadata/${GH_USER}/rpm
 
 # upload rpm packages to the github release page
 deploy:
