@@ -1,3 +1,5 @@
+[![travis Status](https://travis-ci.org/mh-cbon/go-github-release.svg?branch=master)](https://travis-ci.org/mh-cbon/go-github-release)[![Appveyor Status](https://ci.appveyor.com/api/projects/status/github/mh-cbon/go-github-release?branch=master&svg=true)](https://ci.appveyor.com/project/mh-cbon/go-github-release)
+
 # go-github-release
 
 HOWTO implement a feature complete release software flow over github.
